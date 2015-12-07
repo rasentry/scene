@@ -96,11 +96,12 @@ var sandbox = {
         Fs.exists(scriptPath, function (exists) {
             if (exists) {
                 doLoad(scriptPath, function (err) {
-                    Editor.registerComponentsToCore();
+                    Editor.updateComponentMenu();
                     next(err);
                 });
             }
             else {
+                Editor.updateComponentMenu();
                 next();
             }
         });
