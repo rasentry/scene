@@ -218,6 +218,8 @@ Editor.registerElement({
 
         var self = this;
         cc.engine.init(initOptions, function () {
+            self.fire('engine-ready');
+
             Editor.initScene(function (err) {
                 if (err) {
                     self.fire('scene-view-init-error', err);
