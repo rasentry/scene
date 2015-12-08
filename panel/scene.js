@@ -514,7 +514,7 @@
 
             let comp = null;
             if ( node && typeID !== 'cc.Node' ) {
-                comp = node.getComponent(cc.js.getClassByName(typeID));
+                comp = node.getComponent(cc.js._getClassById(typeID));
             }
 
             Editor.sendToWindows( 'scene:query-node-info:reply', sessionID, {
