@@ -87,6 +87,9 @@ Editor.registerElement({
         this.$.grid.setMappingV( mappingV[0], mappingV[1], mappingV[2] );
 
         this.$.grid.setAnchor( 0.5, 0.5 );
+
+        // add capture mousedown event listener to handle the bigger priority event
+        this.addEventListener('mousedown', this._onCaptureMousedown.bind(this), true);
     },
 
     attached: function () {
@@ -430,14 +433,14 @@ Editor.registerElement({
     //     });
     // },
 
-    _onMouseDown: function ( event ) {
-        event.stopPropagation();
-
+    _onCaptureMousedown: function ( event ) {
         // panning
         if ( (event.which === 1 && event.shiftKey) ||
              event.which === 2
            )
         {
+            event.stopPropagation();
+
             this.style.cursor = '-webkit-grabbing';
             EditorUI.startDrag(
                 '-webkit-grabbing',
@@ -465,6 +468,10 @@ Editor.registerElement({
 
             return;
         }
+    },
+
+    _onMouseDown: function ( event ) {
+        event.stopPropagation();
 
         // process rect-selection
         if ( event.which === 1 ) {
