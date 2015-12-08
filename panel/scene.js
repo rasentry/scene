@@ -457,10 +457,8 @@
             this.$.dropArea.hidden = true;
         },
 
-        'scene:is-ready': function ( panelID ) {
-            if ( this._viewReady ) {
-                Editor.sendToPanel( panelID, 'scene:ready', this._viewReady );
-            }
+        'scene:is-ready': function ( sessionID ) {
+            Editor.sendToWindows('scene:is-ready:reply', sessionID, this._viewReady );
         },
 
         'scene:new-scene': function () {
