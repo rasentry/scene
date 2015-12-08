@@ -35,6 +35,8 @@
             'drop-area-leave': '_onDropAreaLeave',
             'drop-area-accept': '_onDropAreaAccept',
 
+            'engine-ready': '_onEngineReady',
+
             'scene-view-ready': '_onSceneViewReady',
             'scene-view-init-error': '_onSceneViewInitError',
 
@@ -380,15 +382,17 @@
             }
         },
 
+        _onEngineReady: function () {
+            // register engine events, after engine ready and before scene load
+            const EngineEvents = Editor.require('packages://scene/panel/scene-view/engine-events');
+            EngineEvents.register(this.$.sceneView);
+        },
+
         // view events
         _onSceneViewReady: function () {
             this._viewReady = true;
             this.$.loader.hidden = true;
             this.undo.clear();
-
-            // register engine events
-            const EngineEvents = Editor.require('packages://scene/panel/scene-view/engine-events');
-            EngineEvents.register(this.$.sceneView);
 
             Editor.sendToAll('scene:ready');
 
