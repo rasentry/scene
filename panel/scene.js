@@ -499,13 +499,28 @@
             Editor.sendToWindows( 'scene:reply-query-node', queryID, dump );
         },
 
-        'scene:query-node-info': function ( sessionID, nodeID ) {
-            var node = cc.engine.getInstanceById(nodeID);
+        'scene:query-node-info': function ( sessionID, nodeOrCompID, typeID ) {
+            let node = null;
+            let nodeOrComp = cc.engine.getInstanceById(nodeOrCompID);
+
+            if ( nodeOrComp ) {
+                if ( nodeOrComp instanceof cc.Component ) {
+                    node = nodeOrComp.node;
+                } else {
+                    node = nodeOrComp;
+                }
+            }
+
+            let comp = null;
+            if ( node && typeID !== 'cc.Node' ) {
+                comp = node.getComponent(cc.js.getClassByName(typeID));
+            }
 
             Editor.sendToWindows( 'scene:query-node-info:reply', sessionID, {
                 name: node ? node.name : '',
-                type: cc.js.getClassName(node),
-                missed: node === null,
+                missed: nodeOrComp === null,
+                nodeID: node ? node.uuid : null,
+                compID: comp ? comp.uuid : null,
             });
         },
 
