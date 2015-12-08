@@ -94,6 +94,7 @@
 
                 // cancel
                 case 1:
+                    Editor.remote._runDashboard = false;
                     event.returnValue = false;
                     return;
 
