@@ -536,9 +536,14 @@
             var node = cc.engine.getInstanceById(nodeID);
 
             var animationNode = node;
-            while (animationNode && !(animationNode instanceof cc.EScene)) {
+            while (animationNode) {
                 var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
                 if (isAnimationNode) {
+                    break;
+                }
+
+                if (animationNode.parent instanceof cc.EScene) {
+                    animationNode = node;
                     break;
                 }
 
