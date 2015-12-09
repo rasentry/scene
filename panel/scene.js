@@ -617,38 +617,81 @@
             }
 
             if (compID) {
-                var isScript = Editor.isUuid(compID);
-                var compCtor = cc.js._getClassById(compID);
+                let isScript = Editor.isUuid(compID);
+                let compCtor = cc.js._getClassById(compID);
                 if (!compCtor) {
                     if (isScript) {
                         return Editor.error(`Can not find cc.Component in the script ${compID}.`);
-                    }
-                    else {
+                    } else {
                         return Editor.error(`Failed to get component ${compID}`);
                     }
                 }
                 //
-                var comp;
-                var node = cc.engine.getInstanceById(nodeID);
-                if (node) {
-                    comp = node.addComponent(compCtor);
-                    this.undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
-                    this.undo.commit();
-                } else {
+                let node = cc.engine.getInstanceById(nodeID);
+                if (!node) {
                     Editor.error( `Can not find node ${nodeID}` );
+                    return;
                 }
+
+                if (compCtor._disallowMultiple) {
+                    let existing = node.getComponent(compCtor._disallowMultiple);
+                    if (existing) {
+                        let detail;
+                        if (existing.constructor === compCtor) {
+                            detail = 'Already contains the same component';
+                        } else {
+                            detail = `Already contains the same or derived component '${cc.js.getClassName(existing)}.`;
+                        }
+
+                        let Remote = require('remote');
+                        let Dialog = Remote.require('dialog');
+                        Dialog.showMessageBox(Remote.getCurrentWindow(), {
+                            type: 'warning',
+                            buttons: ['OK'],
+                            title: 'Warning',
+                            message: `Can\'t add component '${cc.js.getClassName(compCtor)}'`,
+                            detail: detail
+                        });
+                        return;
+                    }
+                }
+
+                let comp = node.addComponent(compCtor);
+                this.undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
+                this.undo.commit();
             }
         },
 
         'scene:remove-component': function ( nodeID, compID ) {
-            var comp = cc.engine.getInstanceById(compID);
-            if (comp) {
-                var node = cc.engine.getInstanceById(nodeID);
-                this.undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
-                this.undo.commit();
-
-                comp.destroy();
+            let comp = cc.engine.getInstanceById(compID);
+            if (!comp) {
+                Editor.error( `Can not find component ${compID}` );
+                return;
             }
+
+            let node = cc.engine.getInstanceById(nodeID);
+            if (!node) {
+                Editor.error( `Can not find node ${nodeID}` );
+                return;
+            }
+
+            let depend = node._getDependComponent(comp);
+            if (depend) {
+                let Remote = require('remote');
+                let Dialog = Remote.require('dialog');
+                Dialog.showMessageBox(Remote.getCurrentWindow(), {
+                    type: 'warning',
+                    buttons: ['OK'],
+                    title: 'Warning',
+                    message: `Can\'t remove component '${cc.js.getClassName(comp)}'`,
+                    detail: `${cc.js.getClassName(depend)} depends on it`
+                });
+                return;
+            }
+            this.undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
+            this.undo.commit();
+
+            comp.destroy();
         },
 
         'scene:create-nodes-by-uuids': function ( uuids, parentID ) {
