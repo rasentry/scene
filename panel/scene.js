@@ -534,7 +534,18 @@
 
         'scene:query-animation-node': function (queryID, nodeID, childName) {
             var node = cc.engine.getInstanceById(nodeID);
-            var dump = Editor.getAnimationNodeDump(node, childName);
+
+            var animationNode = node;
+            while (animationNode && !(animationNode instanceof cc.EScene)) {
+                var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
+                if (isAnimationNode) {
+                    break;
+                }
+
+                animationNode = animationNode.parent;
+            }
+
+            var dump = Editor.getAnimationNodeDump(animationNode, childName);
             Editor.sendToWindows('scene:reply-animation-node', queryID, dump );
         },
 
