@@ -591,6 +591,23 @@
             }
         },
 
+        'scene:reset-property': function ( info ) {
+            var nodeOrComp = cc.engine.getInstanceById(info.id);
+            if (nodeOrComp) {
+                //
+                try {
+                    this.undo.recordObject(info.id);
+                    Editor.info('TODO: @jare please implement Editor.resetPropertyByPath')
+                    // TODO: Editor.resetPropertyByPath(nodeOrComp, info.path, info.type);
+                    cc.engine.repaintInEditMode();
+                }
+                catch (e) {
+                    Editor.warn('Failed to reset property %s of %s, ' + e.message,
+                                info.path, nodeOrComp.name);
+                }
+            }
+        },
+
         'scene:set-property': function ( info ) {
             var nodeOrComp = cc.engine.getInstanceById(info.id);
             if (nodeOrComp) {
