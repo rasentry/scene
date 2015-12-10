@@ -83,6 +83,7 @@
         "scene:query-animation-time",
         "scene:animation-time-changed",
         "scene:animation-clip-changed",
+        "scene:new-clip",
 
         "selection:selected",
         "selection:unselected",

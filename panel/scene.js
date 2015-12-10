@@ -1130,6 +1130,15 @@
             });
         },
 
+        'scene:new-clip': function (info) {
+            var node = cc.engine.getInstanceById(info.nodeId);
+            var comp = node.getComponent(cc.AnimationComponent);
+
+            cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
+                comp.addClip(clip);
+            });
+        },
+
         'selection:selected': function ( type, ids ) {
             if ( type !== 'node' ) {
                 return;
