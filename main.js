@@ -31,7 +31,7 @@ function _showSaveDialog () {
             return 'db://assets/' + Path.relative( rootPath, savePath );
         }
 
-        Dialog.showMessageBox ( Editor.mainWindow.nativeWin, {
+        Editor.Dialog.messageBox ( Editor.mainWindow.nativeWin, {
             type: 'warning',
             buttons: ['OK'],
             title: 'Warning',

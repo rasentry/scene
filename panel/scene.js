@@ -230,9 +230,7 @@
                     name = Url.basename(url);
                 }
 
-                var Remote = require('remote');
-                var Dialog = Remote.require('dialog');
-                return Dialog.showMessageBox( Remote.getCurrentWindow(), {
+                return Editor.Dialog.messageBox({
                     type: 'warning',
                     buttons: ['Save','Cancel','Don\'t Save'],
                     title: 'Save Scene Confirm',
@@ -643,9 +641,7 @@
                             detail = `Already contains the same or derived component '${cc.js.getClassName(existing)}.`;
                         }
 
-                        let Remote = require('remote');
-                        let Dialog = Remote.require('dialog');
-                        Dialog.showMessageBox(Remote.getCurrentWindow(), {
+                        Editor.Dialog.messageBox({
                             type: 'warning',
                             buttons: ['OK'],
                             title: 'Warning',
@@ -677,9 +673,7 @@
 
             let depend = node._getDependComponent(comp);
             if (depend) {
-                let Remote = require('remote');
-                let Dialog = Remote.require('dialog');
-                Dialog.showMessageBox(Remote.getCurrentWindow(), {
+                Editor.Dialog.messageBox({
                     type: 'warning',
                     buttons: ['OK'],
                     title: 'Warning',
