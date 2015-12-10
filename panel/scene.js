@@ -532,7 +532,23 @@
 
         'scene:query-animation-node': function (queryID, nodeID, childName) {
             var node = cc.engine.getInstanceById(nodeID);
-            var dump = Editor.getAnimationNodeDump(node, childName);
+
+            var animationNode = node;
+            while (animationNode) {
+                var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
+                if (isAnimationNode) {
+                    break;
+                }
+
+                if (animationNode.parent instanceof cc.EScene) {
+                    animationNode = node;
+                    break;
+                }
+
+                animationNode = animationNode.parent;
+            }
+
+            var dump = Editor.getAnimationNodeDump(animationNode, childName);
             Editor.sendToWindows('scene:reply-animation-node', queryID, dump );
         },
 
@@ -767,7 +783,7 @@
                 parent = cc.director.getScene();
             }
 
-            var node = new cc.ENode(name);
+            var node = new cc.Node(name);
             node.parent = parent;
 
             var centerX = cc.game.canvas.width / 2;
@@ -1114,6 +1130,15 @@
             });
         },
 
+        'scene:new-clip': function (info) {
+            var node = cc.engine.getInstanceById(info.nodeId);
+            var comp = node.getComponent(cc.AnimationComponent);
+
+            cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
+                comp.addClip(clip);
+            });
+        },
+
         'selection:selected': function ( type, ids ) {
             if ( type !== 'node' ) {
                 return;
@@ -1147,7 +1172,7 @@
                 // var animationNode = node;
                 // var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);;
 
-                // while (animationNode && !(animationNode instanceof cc.EScene)) {
+                // while (animationNode && !(animationNode instanceof cc.Scene)) {
                 //     isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
                 //     if (isAnimationNode) {
                 //         var dump = Editor.getAnimationNodeDump(animationNode);

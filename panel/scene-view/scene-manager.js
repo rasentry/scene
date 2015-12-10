@@ -27,8 +27,8 @@ function createScene (sceneJson, next) {
 }
 
 Editor.runDefaultScene = function () {
-    var scene = new cc.EScene();
-    var canvas = new cc.ENode('Canvas');
+    var scene = new cc.Scene();
+    var canvas = new cc.Node('Canvas');
     canvas.parent = scene;
     canvas.addComponent(cc.Canvas);
 
