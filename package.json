@@ -52,6 +52,7 @@
         "scene:query-node-functions",
         "scene:is-child-class-of",
         "scene:new-property",
+        "scene:reset-property",
         "scene:set-property",
         "scene:add-component",
         "scene:remove-component",
