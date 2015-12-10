@@ -13,22 +13,26 @@ class RecordObjectsCommand extends Editor.Undo.Command {
             let objInfo = this.info.before[i];
             let obj = cc.engine.getInstanceById(objInfo.id);
 
-            Editor._restoreObject( obj, objInfo.data );
+            try {
+                Editor._restoreObject( obj, objInfo.data );
 
-            //
-            let node = null;
-            if ( obj instanceof cc.Node ) {
-                node = obj;
-            } else if ( obj instanceof cc.Component ) {
-                node = obj.node;
+                //
+                let node = null;
+                if ( obj instanceof cc.Node ) {
+                    node = obj;
+                } else if ( obj instanceof cc.Component ) {
+                    node = obj.node;
+                }
+
+                //
+                if ( node && nodeIDs.indexOf( node.uuid ) === -1 ) {
+                    nodeIDs.push( node.uuid );
+                }
+
+                Editor.Selection.select( 'node', nodeIDs );
+            } catch ( err ) {
+                Editor.error(`Failed to restore object ${obj._name}: ${err}`);
             }
-
-            //
-            if ( node && nodeIDs.indexOf( node.uuid ) === -1 ) {
-                nodeIDs.push( node.uuid );
-            }
-
-            Editor.Selection.select( 'node', nodeIDs );
         }
     }
 
@@ -38,22 +42,26 @@ class RecordObjectsCommand extends Editor.Undo.Command {
             let objInfo = this.info.after[i];
             let obj = cc.engine.getInstanceById(objInfo.id);
 
-            Editor._restoreObject( obj, objInfo.data );
+            try {
+                Editor._restoreObject( obj, objInfo.data );
 
-            //
-            let node = null;
-            if ( obj instanceof cc.Node ) {
-                node = obj;
-            } else if ( obj instanceof cc.Component ) {
-                node = obj.node;
+                //
+                let node = null;
+                if ( obj instanceof cc.Node ) {
+                    node = obj;
+                } else if ( obj instanceof cc.Component ) {
+                    node = obj.node;
+                }
+
+                //
+                if ( node && nodeIDs.indexOf( node.uuid ) === -1 ) {
+                    nodeIDs.push( node.uuid );
+                }
+
+                Editor.Selection.select( 'node', nodeIDs );
+            } catch ( err ) {
+                Editor.error(`Failed to restore object ${obj._name}: ${err}`);
             }
-
-            //
-            if ( node && nodeIDs.indexOf( node.uuid ) === -1 ) {
-                nodeIDs.push( node.uuid );
-            }
-
-            Editor.Selection.select( 'node', nodeIDs );
         }
     }
 }
@@ -99,15 +107,19 @@ class DeleteNodesCommand extends Editor.Undo.Command {
         for ( let i = this.info.list.length-1; i >= 0; --i ) {
             let info = this.info.list[i];
 
-            Editor._restoreObject( info.node, info.data );
-            info.comps.forEach(compInfo => {
-                Editor._restoreObject( compInfo.comp, compInfo.data );
-                Editor._renewObject( compInfo.comp );
-            });
+            try {
+                Editor._restoreObject( info.node, info.data );
+                info.comps.forEach(compInfo => {
+                    Editor._restoreObject( compInfo.comp, compInfo.data );
+                    Editor._renewObject( compInfo.comp );
+                });
 
-            info.node.parent = info.parent;
-            info.node.setSiblingIndex(info.siblingIndex);
-            nodeIDs.push(info.node.uuid);
+                info.node.parent = info.parent;
+                info.node.setSiblingIndex(info.siblingIndex);
+                nodeIDs.push(info.node.uuid);
+            } catch ( err ) {
+                Editor.error(`Failed to restore object ${info.node._name}: ${err}`);
+            }
         }
         Editor.Selection.select('node', nodeIDs);
     }
@@ -254,12 +266,16 @@ let SceneUndo = {
         });
         if ( !exists ) {
             let obj = cc.engine.getInstanceById(id);
-            let data = Editor._recordObject(obj);
+            try {
+                let data = Editor._recordObject(obj);
 
-            _currentObjectRecords.push({
-                id: id,
-                data: data,
-            });
+                _currentObjectRecords.push({
+                    id: id,
+                    data: data,
+                });
+            } catch ( err ) {
+                Editor.error(`Failed to record object ${obj._name}: ${err}`);
+            }
         }
     },
 
@@ -293,18 +309,26 @@ let SceneUndo = {
         });
         if ( !exists ) {
             let node = cc.engine.getInstanceById(id);
-            _currentDeletedRecords.push({
-                node: node,
-                parent: node.parent,
-                data: Editor._recordObject(node),
-                siblingIndex: node.getSiblingIndex(),
-                comps: node._components.map(comp => {
+
+            try {
+                let nodeData = Editor._recordObject(node);
+                let compsData = node._components.map(comp => {
                     return {
                         comp: comp,
                         data: Editor._recordObject(comp),
                     };
-                }),
-            });
+                });
+
+                _currentDeletedRecords.push({
+                    node: node,
+                    parent: node.parent,
+                    data: nodeData,
+                    siblingIndex: node.getSiblingIndex(),
+                    comps: compsData,
+                });
+            } catch ( err ) {
+                Editor.error(`Failed to record delete node ${node._name}: ${err}`);
+            }
         }
     },
 
@@ -363,19 +387,23 @@ let SceneUndo = {
 
         // flush records
         if ( _currentObjectRecords.length ) {
-            let beforeList = _currentObjectRecords;
-            let afterList = _currentObjectRecords.map( record => {
-                let obj = cc.engine.getInstanceById(record.id);
-                return {
-                    id: record.id,
-                    data: Editor._recordObject(obj),
-                };
-            });
+            try {
+                let beforeList = _currentObjectRecords;
+                let afterList = _currentObjectRecords.map( record => {
+                    let obj = cc.engine.getInstanceById(record.id);
+                    return {
+                        id: record.id,
+                        data: Editor._recordObject(obj),
+                    };
+                });
 
-            _undo.add('record-objects', {
-                before: beforeList,
-                after: afterList,
-            });
+                _undo.add('record-objects', {
+                    before: beforeList,
+                    after: afterList,
+                });
+            } catch ( err ) {
+                Editor.error(`Failed to add record objects to undo list: ${err}`);
+            }
 
             _currentObjectRecords = [];
         }
