@@ -164,7 +164,7 @@ var EditorEngine = cc.Class({
             cc.view.setDesignResolutionSize(options.designWidth, options.designHeight, cc.ResolutionPolicy.SHOW_ALL);
             cc.view.setCanvasSize(config.width, config.height);
 
-            var scene = new cc.EScene();
+            var scene = new cc.Scene();
             cc.director.runScene(scene);
             cc.game.pause();
 
@@ -228,7 +228,7 @@ var EditorEngine = cc.Class({
      * Returns the node by id.
      * @method getInstanceById
      * @param {String} uuid
-     * @return {cc.ENode}
+     * @return {cc.Node}
      */
     getInstanceById: function (uuid) {
         return this.attachedObjsForEditor[uuid] || null;

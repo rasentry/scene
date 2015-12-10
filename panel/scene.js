@@ -712,7 +712,7 @@
                 parent = cc.director.getScene();
             }
 
-            var node = new cc.ENode(name);
+            var node = new cc.Node(name);
             node.parent = parent;
 
             var centerX = cc.game.canvas.width / 2;
@@ -1092,7 +1092,7 @@
                 // var animationNode = node;
                 // var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);;
 
-                // while (animationNode && !(animationNode instanceof cc.EScene)) {
+                // while (animationNode && !(animationNode instanceof cc.Scene)) {
                 //     isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
                 //     if (isAnimationNode) {
                 //         var dump = Editor.getAnimationNodeDump(animationNode);

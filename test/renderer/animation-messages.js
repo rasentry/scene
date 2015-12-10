@@ -12,7 +12,7 @@ describe('scene messages', function () {
         clip;
 
     beforeEach(function () {
-        node = new cc.ENode();
+        node = new cc.Node();
         animation = node.addComponent(cc.AnimationComponent);
 
         clip = Helper.newAnimClip('test', 2, {
