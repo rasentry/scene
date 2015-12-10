@@ -35,6 +35,8 @@
             'drop-area-leave': '_onDropAreaLeave',
             'drop-area-accept': '_onDropAreaAccept',
 
+            'engine-ready': '_onEngineReady',
+
             'scene-view-ready': '_onSceneViewReady',
             'scene-view-init-error': '_onSceneViewInitError',
 
@@ -92,6 +94,7 @@
 
                 // cancel
                 case 1:
+                    Editor.remote._runDashboard = false;
                     event.returnValue = false;
                     return;
 
@@ -380,15 +383,17 @@
             }
         },
 
+        _onEngineReady: function () {
+            // register engine events, after engine ready and before scene load
+            const EngineEvents = Editor.require('packages://scene/panel/scene-view/engine-events');
+            EngineEvents.register(this.$.sceneView);
+        },
+
         // view events
         _onSceneViewReady: function () {
             this._viewReady = true;
             this.$.loader.hidden = true;
             this.undo.clear();
-
-            // register engine events
-            const EngineEvents = Editor.require('packages://scene/panel/scene-view/engine-events');
-            EngineEvents.register(this.$.sceneView);
 
             Editor.sendToAll('scene:ready');
 
@@ -457,10 +462,8 @@
             this.$.dropArea.hidden = true;
         },
 
-        'scene:is-ready': function ( panelID ) {
-            if ( this._viewReady ) {
-                Editor.sendToPanel( panelID, 'scene:ready', this._viewReady );
-            }
+        'scene:is-ready': function ( sessionID ) {
+            Editor.sendToWindows('scene:is-ready:reply', sessionID, this._viewReady );
         },
 
         'scene:new-scene': function () {
@@ -497,13 +500,28 @@
             Editor.sendToWindows( 'scene:reply-query-node', queryID, dump );
         },
 
-        'scene:query-node-info': function ( sessionID, nodeID ) {
-            var node = cc.engine.getInstanceById(nodeID);
+        'scene:query-node-info': function ( sessionID, nodeOrCompID, typeID ) {
+            let node = null;
+            let nodeOrComp = cc.engine.getInstanceById(nodeOrCompID);
+
+            if ( nodeOrComp ) {
+                if ( nodeOrComp instanceof cc.Component ) {
+                    node = nodeOrComp.node;
+                } else {
+                    node = nodeOrComp;
+                }
+            }
+
+            let comp = null;
+            if ( node && typeID !== 'cc.Node' ) {
+                comp = node.getComponent(cc.js._getClassById(typeID));
+            }
 
             Editor.sendToWindows( 'scene:query-node-info:reply', sessionID, {
                 name: node ? node.name : '',
-                type: cc.js.getClassName(node),
-                missed: node === null,
+                missed: nodeOrComp === null,
+                nodeID: node ? node.uuid : null,
+                compID: comp ? comp.uuid : null,
             });
         },
 

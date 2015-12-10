@@ -8,6 +8,8 @@ var Playable = (function () {
      * @constructor
      */
     function Playable () {
+        EventTarget.call(this);
+
         this._isPlaying = false;
         this._isPaused = false;
         this._isUpdating = false;   // to cache the result of _isPlaying && !_isPaused
@@ -17,7 +19,7 @@ var Playable = (function () {
     JS.extend(Playable, CCObject);
 
     var prototype = Playable.prototype;
-    EventTarget.polyfill(prototype);
+    JS.mixin(prototype, EventTarget.prototype);
 
     /**
      * Is playing?
