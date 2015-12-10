@@ -540,7 +540,7 @@
                     break;
                 }
 
-                if (animationNode.parent instanceof cc.EScene) {
+                if (animationNode.parent instanceof cc.Scene) {
                     animationNode = node;
                     break;
                 }
