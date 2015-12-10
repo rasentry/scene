@@ -17,7 +17,7 @@ class RecordObjectsCommand extends Editor.Undo.Command {
 
             //
             let node = null;
-            if ( obj instanceof cc.ENode ) {
+            if ( obj instanceof cc.Node ) {
                 node = obj;
             } else if ( obj instanceof cc.Component ) {
                 node = obj.node;
@@ -42,7 +42,7 @@ class RecordObjectsCommand extends Editor.Undo.Command {
 
             //
             let node = null;
-            if ( obj instanceof cc.ENode ) {
+            if ( obj instanceof cc.Node ) {
                 node = obj;
             } else if ( obj instanceof cc.Component ) {
                 node = obj.node;

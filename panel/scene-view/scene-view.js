@@ -147,11 +147,11 @@ Editor.registerElement({
         // override some attributes to make the transform of Scene not serializable
         var SceneTransformProps = ['_position', '_rotationX', '_rotationY', '_scaleX', '_scaleY', '_skewX', '_skewY'];
         SceneTransformProps.forEach(function (prop) {
-            var attr = cc.Class.attr(cc.EScene, prop);
+            var attr = cc.Class.attr(cc.Scene, prop);
             attr = cc.js.addon({
                 serializable: false
             }, attr);
-            cc.Class.attr(cc.EScene.prototype, prop, attr);
+            cc.Class.attr(cc.Scene.prototype, prop, attr);
         });
 
         var scene = cc.director.getScene();
