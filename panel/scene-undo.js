@@ -108,14 +108,24 @@ class DeleteNodesCommand extends Editor.Undo.Command {
             let info = this.info.list[i];
 
             try {
+                // restore node
                 Editor._restoreObject( info.node, info.data );
+                Editor._renewObject( info.node );
+                info.node.parent = info.parent;
+                info.node.setSiblingIndex(info.siblingIndex);
+
+                // restore components
                 info.comps.forEach(compInfo => {
                     Editor._restoreObject( compInfo.comp, compInfo.data );
                     Editor._renewObject( compInfo.comp );
                 });
 
-                info.node.parent = info.parent;
-                info.node.setSiblingIndex(info.siblingIndex);
+                // invoke components
+                if (info.node.activeInHierarchy) {
+                    info.comps.forEach(compInfo => {
+                        compInfo.comp.__onNodeActivated(true);
+                    });
+                }
                 nodeIDs.push(info.node.uuid);
             } catch ( err ) {
                 Editor.error(`Failed to restore object ${info.node._name}: ${err}`);

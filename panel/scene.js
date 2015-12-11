@@ -564,13 +564,7 @@
             if (nodeOrComp) {
                 try {
                     var id = info.type;
-                    var ctor;
-                    if (cc.js._isTempClassId(id)) {
-                        ctor = cc.js._getClassById(id);
-                    }
-                    else {
-                        ctor = cc.js.getClassByName(id);
-                    }
+                    var ctor = cc.js._getClassById(id);
                     if ( ctor ) {
                         var obj;
                         try {
@@ -597,8 +591,7 @@
                 //
                 try {
                     this.undo.recordObject(info.id);
-                    Editor.info('TODO: @jare please implement Editor.resetPropertyByPath')
-                    // TODO: Editor.resetPropertyByPath(nodeOrComp, info.path, info.type);
+                    Editor.resetPropertyByPath(nodeOrComp, info.path, info.type);
                     cc.engine.repaintInEditMode();
                 }
                 catch (e) {

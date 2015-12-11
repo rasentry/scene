@@ -372,12 +372,14 @@ Editor.registerElement({
     },
 
     delete: function ( ids ) {
+        var self = this;
         for (var i = 0; i < ids.length; i++) {
             var id = ids[i];
             var node = cc.engine.getInstanceById(id);
             if (node) {
-                this.undo.recordDeleteNode(id);
-                node.destroy();
+                node._destroyForUndo(function () {
+                    self.undo.recordDeleteNode(id);
+                });
             }
         }
         this.undo.commit();
