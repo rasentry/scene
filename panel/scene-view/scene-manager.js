@@ -1,5 +1,4 @@
 var Async = require('async');
-var sandbox = require('./sandbox');
 
 var _sceneView;
 
@@ -42,7 +41,7 @@ Editor.initScene = function (callback) {
         // load last editing scene
         Async.waterfall(
             [
-                sandbox.loadCompiledScript,
+                Editor.Sandbox.loadCompiledScript,
                 createScene.bind(this, sceneJson),
                 function (scene, next) {
                     cc.director.runScene(scene);
@@ -56,7 +55,7 @@ Editor.initScene = function (callback) {
     }
     else {
         Async.waterfall([
-            sandbox.loadCompiledScript,
+            Editor.Sandbox.loadCompiledScript,
             function ( next ) {
                 var currentSceneUuid = Editor.remote.currentSceneUuid;
                 if ( currentSceneUuid ) {
@@ -153,7 +152,7 @@ Editor.playScene = function (callback) {
 
 Editor.softReload = function (compiled) {
     // hot update new compiled scripts
-    sandbox.reload(compiled);
+    Editor.Sandbox.reload(compiled);
 };
 
 module.exports = {

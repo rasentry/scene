@@ -123,7 +123,8 @@
             this.$.sceneView.undo = SceneUndo;
             this.$.sceneView.$.gizmosView.undo = SceneUndo;
 
-            this._resizeDebounceID = null;
+            // init scene-view
+            this.$.sceneView.init();
 
             // A VERY HACK SOLUTION
             // TODO: add panel-close event
@@ -144,6 +145,7 @@
             this._thisOnPaste = this._onPaste.bind(this);
             document.addEventListener('paste', this._thisOnPaste);
         },
+
         detached: function () {
             document.removeEventListener('copy', this._thisOnCopy);
             document.removeEventListener('paste', this._thisOnPaste);
@@ -159,12 +161,6 @@
                 this._resizeDebounceID = null;
                 this.$.sceneView._resize();
             }, 10);
-        },
-
-        reload: function () {
-            // if ( this._viewReady ) {
-            //     this.$.view.reloadIgnoringCache();
-            // }
         },
 
         // menu messages

@@ -49,21 +49,19 @@
             <span class="label">{{pivot}}</span>
             <div class="flex-1"></div>
         </editor-toolbar>
-        <div class="wrapper flex-1">
-            <div class="border fit">
-                <scene-view tabindex="-1" id="sceneView"
-                    transform-tool="{{transformTool}}"
-                    coordinate="{{coordinate}}"
-                    pivot="{{pivot}}"
-                    design-width="{{profiles.local.designWidth}}"
-                    design-height="{{profiles.local.designHeight}}"
-                ></scene-view>
+        <div class="border flex-1">
+            <scene-view class="fit" id="sceneView" tabindex="-1"
+                transform-tool="{{transformTool}}"
+                coordinate="{{coordinate}}"
+                pivot="{{pivot}}"
+                design-width="{{profiles.local.designWidth}}"
+                design-height="{{profiles.local.designHeight}}"
+            ></scene-view>
 
-                <editor-loader id="loader" mask text="Loading"></editor-loader>
-                <div id="dropArea" class="fit" hidden
-                    on-dragover="_onDragOver"
-                ></div>
-            </div>
+            <editor-loader id="loader" mask text="Loading"></editor-loader>
+            <div id="dropArea" class="fit" hidden
+                on-dragover="_onDragOver"
+            ></div>
         </div>
     </template>
 
