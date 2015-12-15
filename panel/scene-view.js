@@ -105,16 +105,6 @@ Editor.registerElement({
         }, 100);
     },
 
-    reset: function () {
-        Editor.Selection.clear('node');
-
-        // reset scene gizmos, scene grid
-        this.$.gizmosView.reset();
-
-        // reset cc.engine editing state
-        cc.engine.animatingInEditMode = false;
-    },
-
     initPosition: function ( x, y, scale ) {
         this.scale = scale;
 
@@ -197,7 +187,7 @@ Editor.registerElement({
         cc.engine.init(opts, () => {
             this.fire('engine-ready');
 
-            Editor.initScene(err => {
+            _Scene.initScene(err => {
                 if (err) {
                     this.fire('scene-view-init-error', err);
                     return;
@@ -213,31 +203,19 @@ Editor.registerElement({
     },
 
     newScene: function () {
-        this.reset();
-        Editor.runDefaultScene();
-
-        this.adjustToCenter(20);
-        cc.engine.repaintInEditMode();
-
-        Editor.remote.currentSceneUuid = null;
+        _Scene.newScene();
         this.fire('scene-view-ready');
     },
 
     loadScene: function ( uuid ) {
-        this.reset();
-
-        cc.director._loadSceneByUuid(uuid, function (err) {
-            this.adjustToCenter(20);
-            cc.engine.repaintInEditMode();
-
+        _Scene.loadSceneByUuid(uuid, err => {
             if (err) {
                 this.fire('scene-view-init-error', err);
+                return;
             }
-            else {
-                Editor.remote.currentSceneUuid = uuid;
-                this.fire('scene-view-ready');
-            }
-        }.bind(this));
+
+            this.fire('scene-view-ready');
+        });
     },
 
     adjustToCenter: function ( margin ) {
@@ -354,17 +332,16 @@ Editor.registerElement({
     },
 
     delete: function ( ids ) {
-        var self = this;
         for (var i = 0; i < ids.length; i++) {
             var id = ids[i];
             var node = cc.engine.getInstanceById(id);
             if (node) {
-                node._destroyForUndo(function () {
-                    self.undo.recordDeleteNode(id);
+                node._destroyForUndo(() => {
+                    _Scene.Undo.recordDeleteNode(id);
                 });
             }
         }
-        this.undo.commit();
+        _Scene.Undo.commit();
         Editor.Selection.unselect('node', ids, true);
     },
 
@@ -408,7 +385,7 @@ Editor.registerElement({
     // play: function () {
     //     var self = this;
     //     //
-    //     Editor.playScene(function (err) {
+    //     _Scene.playScene(function (err) {
     //         if (err) {
     //             this.fire('scene:play-error', err);
     //             return;
