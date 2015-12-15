@@ -51,9 +51,7 @@ function onPostUpdate( event ) {
 
 function onDesignResolutionChanged () {
     var size = cc.engine.getDesignResolutionSize();
-
-    _sceneView.designWidth = size.width;
-    _sceneView.designHeight = size.height;
+    _sceneView.$.gizmosView.designSize = [size.width, size.height];
 }
 
 
