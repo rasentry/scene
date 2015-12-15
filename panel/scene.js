@@ -4,7 +4,7 @@
     const Url = require('fire-url');
 
     function getTopLevelNodes (nodes) {
-        return Editor.Utils.arrayCmpFilter(nodes, function (a, b) {
+        return Editor.Utils.arrayCmpFilter(nodes, (a, b) => {
             if (a === b) {
                 return 0;
             }
@@ -109,19 +109,7 @@
             // init droppable
             this._initDroppable(this.$.dropArea);
 
-            // init scene manager
-            const SceneManager = Editor.require('packages://scene/panel/scene-view/scene-manager');
-            SceneManager.init(this.$.sceneView);
-
-            // init undo
-            const SceneUndo = Editor.require('packages://scene/panel/scene-undo');
-            SceneUndo.init();
-            SceneUndo.on('changed', () => {
-                Editor.sendToCore('scene:update-title', this.undo.dirty());
-            });
-            this.undo = SceneUndo;
-            this.$.sceneView.undo = SceneUndo;
-            this.$.sceneView.$.gizmosView.undo = SceneUndo;
+            _Scene.init(this.$.sceneView, this.$.sceneView.$.gizmosView);
 
             // init scene-view
             this.$.sceneView.init();
@@ -134,8 +122,7 @@
                     return;
                 }
 
-                const EngineEvents = Editor.require('packages://scene/panel/scene-view/engine-events');
-                EngineEvents.unregister();
+                _Scene.EngineEvents.unregister();
             });
         },
 
@@ -215,7 +202,7 @@
         },
 
         confirmCloseScene: function () {
-            var dirty = this.undo.dirty();
+            var dirty = _Scene.Undo.dirty();
             if ( dirty ) {
                 var name = 'New Scene';
                 var url = 'db://assets/New Scene.fire';
@@ -335,8 +322,8 @@
                             node.parent = cc.director.getScene();
                         }
 
-                        this.undo.recordCreateNode(nodeID);
-                        this.undo.commit();
+                        _Scene.Undo.recordCreateNode(nodeID);
+                        _Scene.Undo.commit();
 
                         next ( null, nodeID );
                     },
@@ -379,15 +366,14 @@
 
         _onEngineReady: function () {
             // register engine events, after engine ready and before scene load
-            const EngineEvents = Editor.require('packages://scene/panel/scene-view/engine-events');
-            EngineEvents.register(this.$.sceneView);
+            _Scene.EngineEvents.register();
         },
 
         // view events
         _onSceneViewReady: function () {
             this._viewReady = true;
             this.$.loader.hidden = true;
-            this.undo.clear();
+            _Scene.Undo.clear();
 
             Editor.sendToAll('scene:ready');
 
@@ -406,7 +392,7 @@
             sceneAsset.scene = cc.director.getScene();
 
             // NOTE: we stash scene because we want to save and reload the connected browser
-            Editor.stashScene(function () {
+            _Scene.stashScene(() => {
                 // reload connected browser
                 Editor.sendToCore('app:reload-on-device');
                 Editor.sendToCore('scene:save-scene', Editor.serialize(sceneAsset));
@@ -467,13 +453,13 @@
         },
 
         'scene:play-on-device': function () {
-            Editor.stashScene( function () {
+            _Scene.stashScene(() => {
                 Editor.sendToCore( 'app:play-on-device' );
             });
         },
 
         'scene:reload-on-device': function () {
-            Editor.stashScene( function () {
+            _Scene.stashScene(() => {
                 Editor.sendToCore( 'app:reload-on-device' );
             });
         },
@@ -586,7 +572,7 @@
             if (nodeOrComp) {
                 //
                 try {
-                    this.undo.recordObject(info.id);
+                    _Scene.Undo.recordObject(info.id);
                     Editor.resetPropertyByPath(nodeOrComp, info.path, info.type);
                     cc.engine.repaintInEditMode();
                 }
@@ -609,7 +595,7 @@
                 }
                 //
                 try {
-                    this.undo.recordObject(info.id);
+                    _Scene.Undo.recordObject(info.id);
                     Editor.setPropertyByPath(nodeOrComp, info.path, info.value, info.type);
                     cc.engine.repaintInEditMode();
                 }
@@ -675,8 +661,8 @@
                 }
 
                 let comp = node.addComponent(compCtor);
-                this.undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
-                this.undo.commit();
+                _Scene.Undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
+                _Scene.Undo.commit();
             }
         },
 
@@ -704,8 +690,8 @@
                 });
                 return;
             }
-            this.undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
-            this.undo.commit();
+            _Scene.Undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
+            _Scene.Undo.commit();
 
             comp.destroy();
         },
@@ -747,7 +733,7 @@
                             var centerY = cc.game.canvas.height / 2;
                             node.scenePosition = self.$.sceneView.pixelToScene( cc.v2(centerX, centerY) );
 
-                            this.undo.recordCreateNode(nodeID);
+                            _Scene.Undo.recordCreateNode(nodeID);
                         }
 
                         next ( null, nodeID );
@@ -766,7 +752,7 @@
                     done();
                 });
             }, err => {
-                this.undo.commit();
+                _Scene.Undo.commit();
 
                 if ( err ) {
                     Editor.Selection.cancel();
@@ -810,8 +796,8 @@
                 }
             }
 
-            this.undo.recordCreateNode(node.uuid);
-            this.undo.commit();
+            _Scene.Undo.recordCreateNode(node.uuid);
+            _Scene.Undo.commit();
         },
 
         'scene:create-node-by-prefab': function ( name, prefabID, referenceID, position ) {
@@ -846,8 +832,8 @@
                 cc.engine.repaintInEditMode();
                 Editor.Selection.select('node', node.uuid, true, true );
 
-                this.undo.recordCreateNode(node.uuid);
-                this.undo.commit();
+                _Scene.Undo.recordCreateNode(node.uuid);
+                _Scene.Undo.commit();
             });
         },
 
@@ -870,7 +856,7 @@
                 var id = ids[i];
                 var node = cc.engine.getInstanceById(id);
                 if (node && (!parent || !parent.isChildOf(node))) {
-                    this.undo.recordMoveNode(id);
+                    _Scene.Undo.recordMoveNode(id);
 
                     if (node.parent !== parent) {
                         // keep world transform not changed
@@ -920,7 +906,7 @@
                 }
             }
 
-            this.undo.commit();
+            _Scene.Undo.commit();
         },
 
         'scene:delete-nodes': function ( ids ) {
@@ -987,13 +973,13 @@
         },
 
         'scene:stash-and-reload': function () {
-            Editor.stashScene(function () {
+            _Scene.stashScene(() => {
                 this.reload();
-            }.bind(this));
+            });
         },
 
         'scene:soft-reload': function ( compiled ) {
-            Editor.softReload(compiled);
+            _Scene.softReload(compiled);
         },
 
         'scene:create-prefab': function ( id, baseUrl ) {
@@ -1039,27 +1025,27 @@
         },
 
         'scene:saved': function () {
-            this.undo.save();
+            _Scene.Undo.save();
         },
 
         'scene:undo': function () {
-            this.undo.undo();
+            _Scene.Undo.undo();
         },
 
         'scene:redo': function () {
-            this.undo.redo();
+            _Scene.Undo.redo();
         },
 
         'scene:undo-record': function ( id, desc ) {
-            this.undo.recordObject( id, desc );
+            _Scene.Undo.recordObject( id, desc );
         },
 
         'scene:undo-commit': function () {
-            this.undo.commit();
+            _Scene.Undo.commit();
         },
 
         'scene:undo-cancel': function () {
-            this.undo.cancel();
+            _Scene.Undo.cancel();
         },
 
         'scene:animation-state-changed': function (info) {
