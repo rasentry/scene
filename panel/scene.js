@@ -3,6 +3,11 @@
 
     const Url = require('fire-url');
 
+    let _clipboardCache = {
+        data: null,
+        hash: '',   // used to verify whether the detail data is match with current clipboard
+    };
+
     function getTopLevelNodes (nodes) {
         return Editor.Utils.arrayCmpFilter(nodes, (a, b) => {
             if (a === b) {
@@ -17,11 +22,6 @@
             return 0;
         });
     }
-
-    var detailsForClipboard = {
-        data: null,
-        hash: '',   // used to verify whether the detail data is match with current clipboard
-    };
 
     Editor.registerPanel('scene.panel', {
         behaviors: [ EditorUI.droppable ],
@@ -61,11 +61,6 @@
             },
         },
 
-        observers: [
-            '_designSizeChanged(profiles.local.designWidth)',
-            '_designSizeChanged(profiles.local.designHeight)',
-        ],
-
         created: function () {
             this._viewReady = false;
             this._ipcList = [];
@@ -87,7 +82,7 @@
                 switch ( res ) {
                 // save
                 case 0:
-                    this._saveScene();
+                    _Scene.saveScene();
                     Editor.Selection.clear('node');
                     event.returnValue = true;
                     return;
@@ -129,6 +124,7 @@
         attached: function () {
             this._thisOnCopy = this._onCopy.bind(this);
             document.addEventListener('copy', this._thisOnCopy);
+
             this._thisOnPaste = this._onPaste.bind(this);
             document.addEventListener('paste', this._thisOnPaste);
         },
@@ -188,8 +184,8 @@
                 event.stopPropagation();
             }
 
-            var ids = Editor.Selection.curSelection('node');
-            Editor.sendToPanel( 'scene.panel', 'scene:delete-nodes', ids);
+            let ids = Editor.Selection.curSelection('node');
+            _Scene.deleteNodes(ids);
         },
 
         duplicateCurrentSelected: function ( event ) {
@@ -197,8 +193,8 @@
                 event.stopPropagation();
             }
 
-            var ids = Editor.Selection.curSelection('node');
-            Editor.sendToPanel( 'scene.panel', 'scene:duplicate-nodes', ids);
+            let ids = Editor.Selection.curSelection('node');
+            _Scene.duplicateNodes(ids);
         },
 
         confirmCloseScene: function () {
@@ -228,59 +224,70 @@
 
         // copy & paste
 
-        _onCopy: function ( clipboardEvent ) {
+        _onCopy: function ( event ) {
             //var copyingNode = this.$.sceneView.contains(document.activeElement);
-            if (this._copyingIds) {
-                clipboardEvent.clipboardData.clearData();
-                if (this._copyingIds && this._copyingIds.length > 0) {
-                    var copyInfo = {
-                        nodeIDs: this._copyingIds
-                    };
-                    clipboardEvent.clipboardData.setData('text/fireball', JSON.stringify(copyInfo));
-                }
-                clipboardEvent.stopPropagation();
-                clipboardEvent.preventDefault();
-                this._copyingIds = null;
+            if (!this._copyingIds) {
+                return;
             }
+
+            event.stopPropagation();
+            event.preventDefault();
+
+            event.clipboardData.clearData();
+            if ( !this._copyingIds.length ) {
+                this._copyingIds = null;
+                return;
+            }
+
+            var copyInfo = {
+                nodeIDs: this._copyingIds
+            };
+            event.clipboardData.setData('text/fireball', JSON.stringify(copyInfo));
+            this._copyingIds = null;
         },
 
-        _onPaste: function ( clipboardEvent ) {
+        _onPaste: function ( event ) {
             //var copyingNode = this.$.sceneView.contains(document.activeElement);
-            if (this._pastingId) {
-                var data = clipboardEvent.clipboardData.getData('text/fireball');
-                if (data) {
-                    clipboardEvent.stopPropagation();
-                    clipboardEvent.preventDefault();
-
-                    var copyed = JSON.parse(data).nodeIDs;
-                    var hash = copyed.join(', ');
-                    if (detailsForClipboard.hash === hash) {
-                        var parent;
-                        if (this._pastingId) {
-                            parent = cc.engine.getInstanceById(this._pastingId);
-                        }
-                        if (!parent) {
-                            parent = cc.director.getScene();
-                        }
-
-                        var nodes = detailsForClipboard.data.nodes;
-                        var node;
-                        for (var id in nodes) {
-                            node = cc.instantiate(nodes[id]);
-                            node.parent = parent;
-                        }
-
-                        // select the last one
-                        Editor.Selection.select('node', node.uuid);
-                        return;
-                    }
-                }
-                // clear mismatched data
-                detailsForClipboard.hash = '';
-                detailsForClipboard.data = null;
-
-                this._pastingId = '';
+            if (!this._pastingId) {
+                return;
             }
+
+            var data = event.clipboardData.getData('text/fireball');
+            if (!data) {
+                event.stopPropagation();
+                event.preventDefault();
+
+                var copyed = JSON.parse(data).nodeIDs;
+                var hash = copyed.join(', ');
+                if (_clipboardCache.hash === hash) {
+                    var parent;
+                    if (this._pastingId) {
+                        parent = cc.engine.getInstanceById(this._pastingId);
+                    }
+
+                    if (!parent) {
+                        parent = cc.director.getScene();
+                    }
+
+                    var node;
+                    var nodes = _clipboardCache.data.nodes;
+
+                    for (var id in nodes) {
+                        node = cc.instantiate(nodes[id]);
+                        node.parent = parent;
+                    }
+
+                    // select the last one
+                    Editor.Selection.select('node', node.uuid);
+                    return;
+                }
+            }
+
+            // clear mismatched data
+            _clipboardCache.hash = '';
+            _clipboardCache.data = null;
+
+            this._pastingId = '';
         },
 
         // drag & drop
@@ -296,51 +303,11 @@
         _onDropAreaAccept: function ( event ) {
             event.stopPropagation();
 
-            Editor.Selection.cancel();
+            let uuids = event.detail.dragItems;
+            let x = event.detail.offsetX;
+            let y = event.detail.offsetY;
 
-            var uuids = event.detail.dragItems;
-            // var type = event.detail.dragType;
-            var x = event.detail.offsetX;
-            var y = event.detail.offsetY;
-            var sceneView = this.$.sceneView;
-
-            var Async = require('async');
-
-            Editor.Selection.clear('node');
-            Async.each( uuids, ( uuid, done ) => {
-                Async.waterfall([
-                    next => {
-                        Editor.createNode(uuid, next);
-                    },
-
-                    ( node, next ) => {
-                        var nodeID;
-                        if ( node ) {
-                            nodeID = node.uuid;
-
-                            node.setPosition(sceneView.pixelToScene( cc.v2(x,y) ));
-                            node.parent = cc.director.getScene();
-                        }
-
-                        _Scene.Undo.recordCreateNode(nodeID);
-                        _Scene.Undo.commit();
-
-                        next ( null, nodeID );
-                    },
-
-                ], ( err, nodeID ) => {
-                    if ( err ) {
-                        Editor.failed( 'Failed to drop asset %s, message: %s', uuid, err.stack || err.errorMessage );
-                        return;
-                    }
-
-                    if ( nodeID ) {
-                        Editor.Selection.select('node', nodeID, false, true );
-                    }
-                    cc.engine.repaintInEditMode();
-                    done();
-                });
-            });
+            _Scene.createNodesAt( uuids, x, y );
         },
 
         _onDragOver: function ( event ) {
@@ -357,19 +324,11 @@
             EditorUI.DragDrop.updateDropEffect( event.dataTransfer, 'copy' );
         },
 
-        // value changes
-        _designSizeChanged: function () {
-            if ( this.profiles.local.save ) {
-                this.profiles.local.save();
-            }
-        },
-
         _onEngineReady: function () {
             // register engine events, after engine ready and before scene load
             _Scene.EngineEvents.register();
         },
 
-        // view events
         _onSceneViewReady: function () {
             this._viewReady = true;
             this.$.loader.hidden = true;
@@ -381,32 +340,22 @@
         },
 
         _onSceneViewInitError: function (event) {
-            var err = event.args[0];
-            Editor.failed('Failed to init scene: %s', err.stack);
+            let err = event.args[0];
+            Editor.failed(`Failed to init scene: ${err.stack}`);
 
             this.$.loader.hidden = true;
-        },
-
-        _saveScene: function ( cb ) {
-            var sceneAsset = new cc.SceneAsset();
-            sceneAsset.scene = cc.director.getScene();
-
-            // NOTE: we stash scene because we want to save and reload the connected browser
-            _Scene.stashScene(() => {
-                // reload connected browser
-                Editor.sendToCore('app:reload-on-device');
-                Editor.sendToCore('scene:save-scene', Editor.serialize(sceneAsset));
-
-                if ( cb ) {
-                    cb ();
-                }
-            });
         },
 
         _loadScene ( uuid ) {
             this.$.loader.hidden = false;
             Editor.sendToAll('scene:reloading');
-            this.$.sceneView.loadScene(uuid);
+            _Scene.loadSceneByUuid(uuid, err => {
+                if (err) {
+                    this.fire('scene-view-init-error', err);
+                    return;
+                }
+                this.fire('scene-view-ready');
+            });
         },
 
         'panel:run': function ( argv ) {
@@ -418,7 +367,7 @@
             switch ( res ) {
                 // save
                 case 0:
-                this._saveScene(() => {
+                _Scene.saveScene(() => {
                     this._loadScene(argv.uuid);
                 });
                 return;
@@ -449,7 +398,9 @@
         'scene:new-scene': function () {
             this.$.loader.hidden = false;
             Editor.sendToAll('scene:reloading');
-            this.$.sceneView.newScene();
+            _Scene.newScene();
+
+            this.fire('scene-view-ready');
         },
 
         'scene:play-on-device': function () {
@@ -468,15 +419,14 @@
             if (!cc.engine.isInitialized) {
                 return Editor.sendToWindows( 'scene:reply-query-hierarchy', queryID, '', [] );
             }
-            var nodes = Editor.getHierarchyDump();
-            var sceneUuid = cc.director.getScene().uuid;
+            let nodes = _Scene.dumpHierarchy();
+            let sceneUuid = _Scene.currentScene().uuid;
             Editor.sendToWindows( 'scene:reply-query-hierarchy', queryID, sceneUuid, nodes );
         },
 
         'scene:query-node': function ( queryID, nodeID ) {
-            var node = cc.engine.getInstanceById(nodeID);
-            var dump = Editor.getNodeDump(node);
-            dump = JSON.stringify(dump);    // 改成发送字符串，以免字典的顺序发生改变
+            let dump = _Scene.dumpNode(nodeID);
+            dump = JSON.stringify(dump); // 改成发送字符串，以免字典的顺序发生改变
             Editor.sendToWindows( 'scene:reply-query-node', queryID, dump );
         },
 
@@ -697,220 +647,23 @@
         },
 
         'scene:create-nodes-by-uuids': function ( uuids, parentID ) {
-            var Async = require('async');
-            var self = this;
-
-            var parentNode;
-            if ( parentID ) {
-                parentNode = cc.engine.getInstanceById(parentID);
-            }
-            if ( !parentNode ) {
-                parentNode = cc.director.getScene();
-            }
-
-            Editor.Selection.unselect(
-                'node',
-                Editor.Selection.curSelection('node'),
-                false
-            );
-
-            //
-            Async.each( uuids, ( uuid, done ) => {
-                Async.waterfall([
-                    next => {
-                        Editor.createNode(uuid, next);
-                    },
-
-                    ( node, next ) => {
-                        var nodeID;
-                        if ( node ) {
-                            nodeID = node.uuid;
-
-                            if ( parentNode ) {
-                                node.parent = parentNode;
-                            }
-                            var centerX = cc.game.canvas.width / 2;
-                            var centerY = cc.game.canvas.height / 2;
-                            node.scenePosition = self.$.sceneView.pixelToScene( cc.v2(centerX, centerY) );
-
-                            _Scene.Undo.recordCreateNode(nodeID);
-                        }
-
-                        next ( null, nodeID );
-                    }
-
-                ], ( err, nodeID ) => {
-                    if ( err ) {
-                        Editor.failed( 'Failed to drop asset %s, message: %s', uuid, err.stack || err.errorMessage );
-                        return;
-                    }
-
-                    if ( nodeID ) {
-                        Editor.Selection.select('node', nodeID, false, false );
-                    }
-                    cc.engine.repaintInEditMode();
-                    done();
-                });
-            }, err => {
-                _Scene.Undo.commit();
-
-                if ( err ) {
-                    Editor.Selection.cancel();
-                    return;
-                }
-                Editor.Selection.confirm();
-            });
+            _Scene.createNodes( uuids, parentID );
         },
 
-        'scene:create-node-by-classid': function ( name, classID, referenceID, position ) {
-            var parent;
-
-            if ( referenceID ) {
-                parent = cc.engine.getInstanceById(referenceID);
-                if ( position === 'sibling' ) {
-                    parent = parent.parent;
-                }
-            }
-            if ( !parent ) {
-                parent = cc.director.getScene();
-            }
-
-            var node = new cc.Node(name);
-            node.parent = parent;
-
-            var centerX = cc.game.canvas.width / 2;
-            var centerY = cc.game.canvas.height / 2;
-            node.scenePosition = this.$.sceneView.pixelToScene( cc.v2(centerX, centerY) );
-
-            cc.engine.repaintInEditMode();
-            Editor.Selection.select('node', node.uuid, true, true );
-
-            if (classID) {
-                // add component
-                var Component = cc.js._getClassById(classID);
-                if (Component) {
-                    node.addComponent(Component);
-                }
-                else {
-                    Editor.error('Unknown node to create:', classID);
-                }
-            }
-
-            _Scene.Undo.recordCreateNode(node.uuid);
-            _Scene.Undo.commit();
+        'scene:create-node-by-classid': function ( name, classID, referenceID, isSibling ) {
+            _Scene.createNodeByClassID( name, classID, referenceID, isSibling );
         },
 
-        'scene:create-node-by-prefab': function ( name, prefabID, referenceID, position ) {
-            var parent;
-
-            Editor.createNode(prefabID, (err, node) => {
-                if ( err ) {
-                    Editor.error(err);
-                    return;
-                }
-
-                Editor.PrefabUtils.unlinkPrefab(node);
-
-                node.name = name;
-
-                if ( referenceID ) {
-                    parent = cc.engine.getInstanceById(referenceID);
-                    if ( position === 'sibling' ) {
-                        parent = parent.parent;
-                    }
-                }
-                if ( !parent ) {
-                    parent = cc.director.getScene();
-                }
-
-                node.parent = parent;
-
-                var centerX = cc.game.canvas.width / 2;
-                var centerY = cc.game.canvas.height / 2;
-                node.scenePosition = this.$.sceneView.pixelToScene( cc.v2(centerX, centerY) );
-
-                cc.engine.repaintInEditMode();
-                Editor.Selection.select('node', node.uuid, true, true );
-
-                _Scene.Undo.recordCreateNode(node.uuid);
-                _Scene.Undo.commit();
-            });
+        'scene:create-node-by-prefab': function ( name, prefabID, referenceID, isSibling ) {
+            _Scene.createNodeByPrefab( name, prefabID, referenceID, isSibling );
         },
 
         'scene:move-nodes': function ( ids, parentID, nextSiblingId ) {
-            function getSiblingIndex (node) {
-                return node._parent._children.indexOf(node);
-            }
-
-            var parent;
-
-            if (parentID)
-                parent = cc.engine.getInstanceById(parentID);
-            else
-                parent = cc.director.getScene();
-
-            var next = nextSiblingId ? cc.engine.getInstanceById(nextSiblingId) : null;
-            var nextIndex = next ? getSiblingIndex(next) : -1;
-
-            for (var i = 0; i < ids.length; i++) {
-                var id = ids[i];
-                var node = cc.engine.getInstanceById(id);
-                if (node && (!parent || !parent.isChildOf(node))) {
-                    _Scene.Undo.recordMoveNode(id);
-
-                    if (node.parent !== parent) {
-                        // keep world transform not changed
-                        var worldPos = node.worldPosition;
-                        var worldRotation = node.worldRotation;
-                        var lossyScale = node.worldScale;
-
-                        node.parent = parent;
-
-                        // restore world transform
-                        node.worldPosition = worldPos;
-                        node.worldRotation = worldRotation;
-                        if (parent) {
-                            lossyScale.x /= parent.worldScale.x;
-                            lossyScale.y /= parent.worldScale.y;
-                            node.scale = lossyScale;
-                        }
-                        else {
-                            node.scale = lossyScale;
-                        }
-
-                        if (next) {
-                            node.setSiblingIndex(nextIndex);
-                            ++nextIndex;
-                        }
-                    }
-                    else if (next) {
-                        var lastIndex = getSiblingIndex(node);
-                        var newIndex = nextIndex;
-                        if (newIndex > lastIndex) {
-                            --newIndex;
-                        }
-                        if (newIndex !== lastIndex) {
-                            node.setSiblingIndex(newIndex);
-                            if (lastIndex > newIndex) {
-                                ++nextIndex;
-                            }
-                            else {
-                                --nextIndex;
-                            }
-                        }
-                    }
-                    else {
-                        // move to bottom
-                        node.setSiblingIndex(-1);
-                    }
-                }
-            }
-
-            _Scene.Undo.commit();
+            _Scene.moveNodes( ids, parentID, nextSiblingId );
         },
 
         'scene:delete-nodes': function ( ids ) {
-            this.$.sceneView.delete(ids);
+            _Scene.deleteNodes(ids);
         },
 
         'scene:copy-nodes': function (ids) {
@@ -929,8 +682,8 @@
             });
 
             // save real data to cache
-            detailsForClipboard.hash = this._copyingIds.join(', ');
-            detailsForClipboard.data = copyData;
+            _clipboardCache.hash = this._copyingIds.join(', ');
+            _clipboardCache.data = copyData;
 
             // Emit copy event on this web contents,
             // so that we can access to the clipboard without pressing [Command + C]
@@ -949,27 +702,7 @@
         },
 
         'scene:duplicate-nodes': function ( ids ) {
-            var nodes = [];
-            for ( var i = 0; i < ids.length; ++i ) {
-                var node = cc.engine.getInstanceById(ids[i]);
-                if (node) {
-                    nodes.push(node);
-                }
-            }
-
-            var results = getTopLevelNodes(nodes);
-
-            // duplicate results
-            var clones = [];
-            results.forEach(function ( node ) {
-                var clone = cc.instantiate(node);
-                clone.parent = node.parent;
-
-                clones.push(clone.uuid);
-            });
-
-            // select the last one
-            Editor.Selection.select('node', clones);
+            _Scene.duplicateNodes(ids);
         },
 
         'scene:stash-and-reload': function () {
@@ -983,45 +716,19 @@
         },
 
         'scene:create-prefab': function ( id, baseUrl ) {
-            var node = cc.engine.getInstanceById(id);
-            var prefab = Editor.PrefabUtils.createPrefabFrom(node);
-            var json = Editor.serialize(prefab);
-            var url = Url.join(baseUrl, node.name + '.prefab');
-
-            Editor.sendRequestToCore('scene:create-prefab', url, json, function (err, uuid) {
-                if (!err) {
-                    Editor.PrefabUtils.savePrefabUuid(node, uuid);
-                }
-            });
+            _Scene.createPrefab(id, baseUrl);
         },
 
         'scene:apply-prefab': function ( id ) {
-            var node = cc.engine.getInstanceById(id);
-            if (!node || !node._prefab) {
-                return;
-            }
-
-            node = node._prefab.root;
-            var uuid = node._prefab.asset._uuid;
-            var prefab = Editor.PrefabUtils.createPrefabFrom(node);
-            Editor.PrefabUtils.savePrefabUuid(node, uuid);
-            var json = Editor.serialize(prefab);
-
-            Editor.sendToCore('scene:apply-prefab', uuid, json);
+            _Scene.applyPrefab(id);
         },
 
         'scene:revert-prefab': function ( id ) {
-            var node = cc.engine.getInstanceById(id);
-            if (!node || !node._prefab) {
-                return;
-            }
-
-            node = node._prefab.root;
-            Editor.PrefabUtils.revertPrefab(node);
+            _Scene.revertPrefab(id);
         },
 
         'scene:stash-and-save': function () {
-            this._saveScene();
+            _Scene.saveScene();
         },
 
         'scene:saved': function () {
@@ -1135,14 +842,14 @@
             if ( type !== 'node' ) {
                 return;
             }
-            this.$.sceneView.select(ids);
+            _Scene.select(ids);
         },
 
         'selection:unselected': function ( type, ids ) {
             if ( type !== 'node' ) {
                 return;
             }
-            this.$.sceneView.unselect(ids);
+            _Scene.unselect(ids);
         },
 
         'selection:activated': function ( type, id ) {
@@ -1150,33 +857,7 @@
                 return;
             }
 
-            var node = cc.engine.getInstanceById(id);
-            if (node) {
-                var isAnimationNode = node.getComponent(cc.Animation);
-
-                if (isAnimationNode) {
-                    var dump = Editor.getAnimationNodeDump(node);
-                    Editor.sendToWindows('scene:animation-node-activated', dump);
-                }
-
-                // Another Choose, select AnimationNode's child will also trigger scene:animation-node-activated
-
-                // var animationNode = node;
-                // var isAnimationNode = animationNode.getComponent(cc.Animation);;
-
-                // while (animationNode && !(animationNode instanceof cc.Scene)) {
-                //     isAnimationNode = animationNode.getComponent(cc.Animation);
-                //     if (isAnimationNode) {
-                //         var dump = Editor.getAnimationNodeDump(animationNode);
-                //         Editor.sendToWindows('scene:animation-node-activated', dump);
-                //         break;
-                //     }
-
-                //     animationNode = animationNode.parent;
-                // }
-            }
-
-            this.$.sceneView.activate(id);
+            _Scene.activate(id);
         },
 
         'selection:deactivated': function ( type, id ) {
@@ -1184,21 +865,21 @@
                 return;
             }
 
-            this.$.sceneView.deactivate(id);
+            _Scene.deactivate(id);
         },
 
         'selection:hoverin': function ( type, id ) {
             if ( type !== 'node' ) {
                 return;
             }
-            this.$.sceneView.hoverin(id);
+            _Scene.hoverin(id);
         },
 
         'selection:hoverout': function ( type, id ) {
             if ( type !== 'node' ) {
                 return;
             }
-            this.$.sceneView.hoverout(id);
+            _Scene.hoverout(id);
         },
     });
 })();
