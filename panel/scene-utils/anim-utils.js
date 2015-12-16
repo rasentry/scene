@@ -1,7 +1,9 @@
 'use strict';
 
 let AnimUtils = {
-  curEditNode: null,
+  _recording: false,
+
+  curRootNode: null,
   curTime: -1,
 
   isPlaying () {

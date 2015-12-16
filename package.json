@@ -42,6 +42,9 @@
       "messages": [
         "editor:dragstart",
         "editor:dragend",
+        "editor:start-recording",
+        "editor:stop-recording",
+
         "scene:is-ready",
         "scene:new-scene",
         "scene:play-on-device",
