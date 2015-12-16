@@ -459,5 +459,3 @@ var EditorEngine = cc.Class({
 });
 
 cc.engine = new EditorEngine(false);
-
-module.exports = EditorEngine;

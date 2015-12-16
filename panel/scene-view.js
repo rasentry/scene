@@ -1,8 +1,8 @@
 (function () {
 'use strict';
 
-var Path = require('fire-path');
-//var Url = require('fire-url');
+// var Path = require('fire-path');
+// var Url = require('fire-url');
 
 function callOnFocusInTryCatch (c) {
     try {
@@ -57,20 +57,6 @@ Editor.registerElement({
             notify: true,
             observer: 'setPivot',
         },
-
-        designWidth: {
-            type: Number,
-            value: 0,
-            notify: true,
-            observer: '_designSizeChanged',
-        },
-
-        designHeight: {
-            type: Number,
-            value: 0,
-            notify: true,
-            observer: '_designSizeChanged',
-        }
     },
 
     ready: function () {
@@ -92,45 +78,31 @@ Editor.registerElement({
         this.addEventListener('mousedown', this._onCaptureMousedown.bind(this), true);
     },
 
-    attached: function () {
-        // this.async(() => {
-        //     this.lightDomReady();
-        // });
-
-        window.requestAnimationFrame(() => {
-            this.lightDomReady();
-        });
-    },
-
-    lightDomReady: function  () {
-        this._resize();
+    detached: function () {
+        clearInterval(this._initTimer);
     },
 
     init: function () {
-        this._initEngine();
+        this._initTimer = setInterval(() => {
+            // do nothing if bounding rect is zero
+            let bcr = this.getBoundingClientRect();
+            if ( bcr.width === 0 && bcr.height === 0 ) {
+                return;
+            }
 
-        // init grid
-        this.$.grid.resize();
-        this.$.grid.repaint();
+            clearInterval(this._initTimer);
+            this._initEngine(() => {
+                // init gizmos
+                this.$.gizmosView.sceneToPixel = this.sceneToPixel.bind(this);
+                this.$.gizmosView.worldToPixel = this.worldToPixel.bind(this);
+                this.$.gizmosView.pixelToScene = this.pixelToScene.bind(this);
+                this.$.gizmosView.pixelToWorld = this.pixelToWorld.bind(this);
 
-        // init gizmos
-        this.$.gizmosView.resize();
-        this.$.gizmosView.sceneToPixel = this.sceneToPixel.bind(this);
-        this.$.gizmosView.worldToPixel = this.worldToPixel.bind(this);
-        this.$.gizmosView.pixelToScene = this.pixelToScene.bind(this);
-        this.$.gizmosView.pixelToWorld = this.pixelToWorld.bind(this);
-
-        this._inited = true;
-    },
-
-    reset: function () {
-        Editor.Selection.clear('node');
-
-        // reset scene gizmos, scene grid
-        this.$.gizmosView.reset();
-
-        // reset cc.engine editing state
-        cc.engine.animatingInEditMode = false;
+                //
+                this._inited = true;
+                this._resize();
+            });
+        }, 100);
     },
 
     initPosition: function ( x, y, scale ) {
@@ -162,19 +134,13 @@ Editor.registerElement({
     },
 
     _resize: function () {
-        var bcr;
-
-        // need init when panel has size, or canvas and resolution size will be zero
-        if (!this._inited) {
-            // should not init if bounding rect is zero
-            bcr = this.getBoundingClientRect();
-            if (bcr.width === 0 && bcr.height === 0) return;
-
-            this.init();
-            this._designSizeChanged();
+        if ( !this._inited ) {
+            return;
         }
 
-        if ( cc.engine.isPlaying || !cc.view) {
+        // do nothing if bounding rect is zero
+        let bcr = this.getBoundingClientRect();
+        if ( bcr.width === 0 && bcr.height === 0 ) {
             return;
         }
 
@@ -186,7 +152,6 @@ Editor.registerElement({
         this.$.gizmosView.resize();
 
         // resize engine
-        bcr = this.getBoundingClientRect();
         cc.view.setCanvasSize(bcr.width, bcr.height);
         cc.view.setDesignResolutionSize(bcr.width, bcr.height);
 
@@ -198,7 +163,7 @@ Editor.registerElement({
         cc.engine.repaintInEditMode();
     },
 
-    _initEngine: function () {
+    _initEngine: function ( cb ) {
         if ( cc.engine.isInitialized ) {
             // 从外部窗口 attach 回到主窗口时需要重置所有 engine 相关状态
             cc.engine.reset();
@@ -211,87 +176,82 @@ Editor.registerElement({
         canvasEL.width  = bcr.width;
         canvasEL.height = bcr.height;
 
-        var initOptions = {
+        var opts = {
+            id: 'engine-canvas',
             width: bcr.width,
             height: bcr.height,
-            id: 'engine-canvas',
             designWidth: bcr.width,
             designHeight: bcr.height
         };
 
-        var self = this;
-        cc.engine.init(initOptions, function () {
-            self.fire('engine-ready');
+        cc.engine.init(opts, () => {
+            this.fire('engine-ready');
 
-            Editor.initScene(function (err) {
+            _Scene.initScene(err => {
                 if (err) {
-                    self.fire('scene-view-init-error', err);
+                    this.fire('scene-view-init-error', err);
+                    return;
                 }
-                else {
-                    self.fire('scene-view-ready');
-                    self._resize();
+
+                this.fire('scene-view-ready');
+
+                if ( cb ) {
+                    cb ();
                 }
             });
         });
     },
 
     newScene: function () {
-        this.reset();
-        Editor.runDefaultScene();
-
-        this.adjustToCenter(20);
-        cc.engine.repaintInEditMode();
-
-        Editor.remote.currentSceneUuid = null;
+        _Scene.newScene();
         this.fire('scene-view-ready');
     },
 
     loadScene: function ( uuid ) {
-        this.reset();
-
-        cc.director._loadSceneByUuid(uuid, function (err) {
-            this.adjustToCenter(20);
-            cc.engine.repaintInEditMode();
-
+        _Scene.loadSceneByUuid(uuid, err => {
             if (err) {
                 this.fire('scene-view-init-error', err);
+                return;
             }
-            else {
-                Editor.remote.currentSceneUuid = uuid;
-                this.fire('scene-view-ready');
-            }
-        }.bind(this));
+
+            this.fire('scene-view-ready');
+        });
     },
 
     adjustToCenter: function ( margin ) {
         var bcr = this.getBoundingClientRect();
         var fitWidth = bcr.width - margin * 2;
         var fitHeigth = bcr.height - margin * 2;
-        var designWidth = this.$.gizmosView.designSize[0];
-        var designHeight = this.$.gizmosView.designSize[1];
+
+        var designSize = cc.engine.getDesignResolutionSize();
+        var designWidth = designSize.width;
+        var designHeight = designSize.height;
 
         if ( designWidth <= fitWidth && designHeight <= fitHeigth ) {
-            this.initPosition( this.$.grid.xDirection * (bcr.width - designWidth)/2,
-                       this.$.grid.yDirection * (bcr.height - designHeight)/2,
-                       1.0
-                    );
+            this.initPosition(
+                this.$.grid.xDirection * (bcr.width - designWidth)/2,
+                this.$.grid.yDirection * (bcr.height - designHeight)/2,
+                1.0
+            );
         }
         else {
             var result = Editor.Utils.fitSize(designWidth, designHeight,
                                               fitWidth, fitHeigth);
             // move x
             if ( result[0] < result[1] ) {
-                this.initPosition( this.$.grid.xDirection * (bcr.width - result[0])/2,
-                           this.$.grid.yDirection * (bcr.height - result[1])/2,
-                           result[0]/designWidth
-                        );
+                this.initPosition(
+                    this.$.grid.xDirection * (bcr.width - result[0])/2,
+                    this.$.grid.yDirection * (bcr.height - result[1])/2,
+                    result[0]/designWidth
+                );
             }
             // move y
             else {
-                this.initPosition( this.$.grid.xDirection * (bcr.width - result[0])/2,
-                           this.$.grid.yDirection * (bcr.height - result[1])/2,
-                           result[1]/designHeight
-                        );
+                this.initPosition(
+                    this.$.grid.xDirection * (bcr.width - result[0])/2,
+                    this.$.grid.yDirection * (bcr.height - result[1])/2,
+                    result[1]/designHeight
+                );
             }
         }
     },
@@ -376,11 +336,12 @@ Editor.registerElement({
             var id = ids[i];
             var node = cc.engine.getInstanceById(id);
             if (node) {
-                this.undo.recordDeleteNode(id);
-                node.destroy();
+                node._destroyForUndo(() => {
+                    _Scene.Undo.recordDeleteNode(id);
+                });
             }
         }
-        this.undo.commit();
+        _Scene.Undo.commit();
         Editor.Selection.unselect('node', ids, true);
     },
 
@@ -424,7 +385,7 @@ Editor.registerElement({
     // play: function () {
     //     var self = this;
     //     //
-    //     Editor.playScene(function (err) {
+    //     _Scene.playScene(function (err) {
     //         if (err) {
     //             this.fire('scene:play-error', err);
     //             return;
@@ -634,21 +595,6 @@ Editor.registerElement({
         this.$.gizmosView.pivot = pivot || this.pivot;
         cc.engine.repaintInEditMode();
     },
-
-    _designSizeChanged: function () {
-        if (!this._inited) return;
-
-        var w = this.designWidth;
-        var h = this.designHeight;
-
-        this.$.gizmosView.designSize = [w, h];
-
-        var size = cc.engine.getDesignResolutionSize();
-        if (size.width !== w || size.height !== h) {
-            cc.engine.setDesignResolutionSize(w, h);
-            cc.engine.repaintInEditMode();
-        }
-    }
 });
 
 })();
