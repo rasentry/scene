@@ -12,26 +12,27 @@
     curTime: -1,
 
     isPlaying() {
-      if (!this.curAnimState) return false;
-      return this.curAnimState.isPlaying;
+      var curAnimState = this.curAnimState;
+      if (!curAnimState) return false;
+      return curAnimState.isPlaying && !curAnimState.isPaused;
     },
 
     setAnimationTime(info) {
-      var anim = this.curAnim;
-      var aniState = this.curAnimState;
+      let anim = this.curAnim;
+      let aniState = this.curAnimState;
 
       if (!anim || !aniState) {
         return;
       }
 
-      var clipName = info.clip;
+      let clipName = info.clip;
 
       if (!aniState.isPlaying) {
         anim.play(clipName);
         anim.pause(clipName);
       }
 
-      var time = info.time;
+      let time = info.time;
       this.curTime = time;
 
       if (time > aniState.duration) {
@@ -44,32 +45,32 @@
       cc.engine.repaintInEditMode();
     },
 
-    getAnimationTime: function (info) {
-      var aniState = this.curAnimState;
+    getAnimationTime(info) {
+      let aniState = this.curAnimState;
 
       if (!aniState) {
         return;
       }
 
-      var wrappedInfo = aniState.getWrappedInfo(aniState.time);
+      let wrappedInfo = aniState.getWrappedInfo(aniState.time);
 
       return {
         clip: info.clip,
         time: wrappedInfo.time,
-        isPlaying: aniState.isPlaying
+        isPlaying: this.isPlaying()
       };
     },
 
-    setCurrentPlayState: function (info) {
-      var anim = this.curAnim;
-      var aniState = this.curAnimState;
+    setCurrentPlayState(info) {
+      let anim = this.curAnim;
+      let aniState = this.curAnimState;
 
       if (!anim || !aniState) {
         return;
       }
 
-      var state = info.state;
-      var clipName = info.clip;
+      let state = info.state;
+      let clipName = info.clip;
 
       if (state === 'play') {
         anim.play(clipName);
@@ -88,32 +89,32 @@
     },
 
     addClip(info) {
-      var node = this.curEditNode;
+      let node = this.curEditNode;
       if (!node) {
         return;
       }
 
-      cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
-        var anim = node.getComponent(cc.Animation);
+      cc.AssetLibrary.loadAsset(info.clipUuid, (err, clip) => {
+        let anim = node.getComponent(cc.Animation);
         anim.addClip(clip);
       });
     },
 
     updateClip(info) {
-      var anim = this.curAnim;
+      let anim = this.curAnim;
       if (!anim) return;
 
-      cc.AssetLibrary.loadJson(info.data, function (err, clip) {
-          if (err) {
-            Editor.error(err);
-            return;
-          }
+      cc.AssetLibrary.loadJson(info.data, (err, clip) => {
+        if (err) {
+          Editor.error(err);
+          return;
+        }
 
-          // need to update animation time
-          anim.setCurrentTime(info.time, info.clip);
+        // need to update animation time
+        anim.setCurrentTime(info.time, info.clip);
 
-          anim._updateClip(clip);
-          cc.engine.repaintInEditMode();
+        anim._updateClip(clip);
+        cc.engine.repaintInEditMode();
       });
     },
 
@@ -124,11 +125,11 @@
         return;
       }
 
-      var curRootNode = this.curRootNode;
+      let curRootNode = this.curRootNode;
       if (!curRootNode) return;
 
-      var anim = this.curAnim = curRootNode.getComponent(cc.Animation);
-      var clipName = info.clip;
+      let anim = this.curAnim = curRootNode.getComponent(cc.Animation);
+      let clipName = info.clip;
 
       this.curAnimState = anim.getAnimationState(clipName);
       anim.play(clipName);
@@ -138,32 +139,32 @@
     // trajectory
 
     showTrajectoryGizmo(info) {
-      var gizmosView = _Scene.gizmosView;
-      var curRootNode = this.curRootNode;
+      let gizmosView = _Scene.gizmosView;
+      let curRootNode = this.curRootNode;
 
       if (!curRootNode) {
         return;
       }
 
-      cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
-          for (var i = 0; i < info.nodeIds.length; i++) {
-              var node = cc.engine.getInstanceById(info.nodeIds[i]);
-              if (!node) continue;
+      cc.AssetLibrary.loadAsset(info.clipUuid, (err, clip) => {
+        for (let i = 0; i < info.nodeIds.length; i++) {
+          let node = cc.engine.getInstanceById(info.nodeIds[i]);
+          if (!node) continue;
 
-              if (!node.trajectoryGizmo) {
-                  node.trajectoryGizmo = new Editor.gizmos.trajectory(gizmosView, node);
-              }
-              node.trajectoryGizmo.show(curRootNode, clip, info.childPaths[i]);
+          if (!node.trajectoryGizmo) {
+            node.trajectoryGizmo = new Editor.gizmos.trajectory(gizmosView, node);
           }
+          node.trajectoryGizmo.show(curRootNode, clip, info.childPaths[i]);
+        }
       });
     },
 
     hideTrajectoryGizmo(info) {
-      for (var i = 0; i < info.nodeIds.length; i++) {
-          var node = cc.engine.getInstanceById(info.nodeIds[i]);
-          if (node && node.trajectoryGizmo) {
-              node.trajectoryGizmo.hide();
-          }
+      for (let i = 0; i < info.nodeIds.length; i++) {
+        let node = cc.engine.getInstanceById(info.nodeIds[i]);
+        if (node && node.trajectoryGizmo) {
+          node.trajectoryGizmo.hide();
+        }
       }
     },
 
@@ -173,8 +174,8 @@
       this.curEditNode = node;
       this.curRootNode = null;
 
-      var animationNode = node;
-      var isAnimationNode = animationNode.getComponent(cc.Animation);
+      let animationNode = node;
+      let isAnimationNode = animationNode.getComponent(cc.Animation);
 
       while (animationNode && !(animationNode instanceof cc.Scene)) {
         isAnimationNode = animationNode.getComponent(cc.Animation);
@@ -185,15 +186,6 @@
 
         animationNode = animationNode.parent;
       }
-    },
-
-    deactivate(node) {
-      if (this.curEditNode !== node) {
-        return;
-      }
-
-      this.curRootNode = null;
-      this.curEditNode = null;
     }
   };
 

@@ -616,8 +616,6 @@ let Scene = {
       return;
     }
 
-    _Scene.AnimUtils.deactivate(node);
-
     for (var i = 0; i < node._components.length; ++i) {
       var comp = node._components[0];
       if (comp.constructor._executeInEditMode && comp.isValid) {
