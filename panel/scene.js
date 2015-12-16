@@ -1141,7 +1141,7 @@
             var node = cc.engine.getInstanceById(info.rootId);
             if (!node) return;
 
-            var comp = node.getComponent(cc.AnimationComponent);
+            var comp = node.getComponent(cc.Animation);
             var clipName = info.clip;
 
             comp.play(clipName);
