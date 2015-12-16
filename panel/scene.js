@@ -391,6 +391,18 @@
             this.$.dropArea.hidden = true;
         },
 
+        'editor:start-recording': function () {
+            _Scene.AnimUtils._recording = true;
+            // let data = Editor._recordObject(_Scene.AnimUtils.curRootNode);
+            // TODO:
+        },
+
+        'editor:stop-recording': function () {
+            _Scene.AnimUtils._recording = false;
+            // Editor._restoreObject(data);
+            // TODO:
+        },
+
         'scene:is-ready': function ( sessionID ) {
             Editor.sendToWindows('scene:is-ready:reply', sessionID, this._viewReady );
         },
