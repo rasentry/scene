@@ -85,6 +85,7 @@
         "scene:animation-time-changed",
         "scene:animation-clip-changed",
         "scene:new-clip",
+        "scene:animation-current-clip-changed",
 
         "selection:selected",
         "selection:unselected",

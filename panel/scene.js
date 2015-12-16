@@ -1156,6 +1156,17 @@
             });
         },
 
+        'scene:animation-current-clip-changed': function (info) {
+            var node = cc.engine.getInstanceById(info.rootId);
+            if (!node) return;
+
+            var comp = node.getComponent(cc.AnimationComponent);
+            var clipName = info.clip;
+
+            comp.play(clipName);
+            comp.pause(clipName);
+        },
+
         'selection:selected': function ( type, ids ) {
             if ( type !== 'node' ) {
                 return;
