@@ -2,6 +2,8 @@
 
 (() => {
   let AnimUtils = {
+    _recording: false,
+
     curRootNode: null,
     curEditNode: null,
     curAnim: null,
