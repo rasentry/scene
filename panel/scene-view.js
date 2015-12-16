@@ -4,23 +4,6 @@
 // var Path = require('fire-path');
 // var Url = require('fire-url');
 
-function callOnFocusInTryCatch (c) {
-    try {
-        c.onFocusInEditor();
-    }
-    catch (e) {
-        cc._throw(e);
-    }
-}
-function callOnLostFocusInTryCatch (c) {
-    try {
-        c.onLostFocusInEditor();
-    }
-    catch (e) {
-        cc._throw(e);
-    }
-}
-
 Editor.registerElement({
     listeners: {
         'mousedown': '_onMouseDown',
@@ -202,32 +185,16 @@ Editor.registerElement({
         });
     },
 
-    newScene: function () {
-        _Scene.newScene();
-        this.fire('scene-view-ready');
-    },
-
-    loadScene: function ( uuid ) {
-        _Scene.loadSceneByUuid(uuid, err => {
-            if (err) {
-                this.fire('scene-view-init-error', err);
-                return;
-            }
-
-            this.fire('scene-view-ready');
-        });
-    },
-
     adjustToCenter: function ( margin ) {
         var bcr = this.getBoundingClientRect();
         var fitWidth = bcr.width - margin * 2;
-        var fitHeigth = bcr.height - margin * 2;
+        var fitHeight = bcr.height - margin * 2;
 
         var designSize = cc.engine.getDesignResolutionSize();
         var designWidth = designSize.width;
         var designHeight = designSize.height;
 
-        if ( designWidth <= fitWidth && designHeight <= fitHeigth ) {
+        if ( designWidth <= fitWidth && designHeight <= fitHeight ) {
             this.initPosition(
                 this.$.grid.xDirection * (bcr.width - designWidth)/2,
                 this.$.grid.yDirection * (bcr.height - designHeight)/2,
@@ -235,8 +202,12 @@ Editor.registerElement({
             );
         }
         else {
-            var result = Editor.Utils.fitSize(designWidth, designHeight,
-                                              fitWidth, fitHeigth);
+            var result = Editor.Utils.fitSize(
+                designWidth,
+                designHeight,
+                fitWidth,
+                fitHeight
+            );
             // move x
             if ( result[0] < result[1] ) {
                 this.initPosition(
@@ -279,106 +250,6 @@ Editor.registerElement({
     pixelToWorld: function (pos) {
         var scene = cc.director.getScene();
         return cc.v2(scene.convertToWorldSpaceAR(this.pixelToScene(pos)));
-    },
-
-    activate: function ( id ) {
-        var node = cc.engine.getInstanceById(id);
-        if (node) {
-            for (var i = 0; i < node._components.length; ++i) {
-                var comp = node._components[0];
-                if (comp.constructor._executeInEditMode && comp.isValid) {
-                    if (comp.onFocusInEditor) {
-                        callOnFocusInTryCatch(comp);
-                    }
-                    if (comp.constructor._playOnFocus) {
-                        cc.engine.animatingInEditMode = true;
-                    }
-                }
-            }
-        }
-    },
-
-    deactivate: function ( id ) {
-        var node = cc.engine.getInstanceById(id);
-        if (node && node.isValid) {
-            for (var i = 0; i < node._components.length; ++i) {
-                var comp = node._components[0];
-                if (comp.constructor._executeInEditMode && comp.isValid) {
-                    if (comp.onLostFocusInEditor) {
-                        callOnLostFocusInTryCatch(comp);
-                    }
-                    if (comp.constructor._playOnFocus) {
-                        cc.engine.animatingInEditMode = false;
-                    }
-                }
-            }
-        }
-    },
-
-    select: function ( ids ) {
-        this.$.gizmosView.select(ids);
-    },
-
-    unselect: function ( ids ) {
-        this.$.gizmosView.unselect(ids);
-    },
-
-    hoverin: function ( id ) {
-        this.$.gizmosView.hoverin(id);
-    },
-
-    hoverout: function ( id ) {
-        this.$.gizmosView.hoverout(id);
-    },
-
-    delete: function ( ids ) {
-        for (var i = 0; i < ids.length; i++) {
-            var id = ids[i];
-            var node = cc.engine.getInstanceById(id);
-            if (node) {
-                node._destroyForUndo(() => {
-                    _Scene.Undo.recordDeleteNode(id);
-                });
-            }
-        }
-        _Scene.Undo.commit();
-        Editor.Selection.unselect('node', ids, true);
-    },
-
-    hitTest: function ( x, y ) {
-        // TODO
-        // this.$.gizmosView.rectHitTest( x, y, 1, 1 );
-
-        var worldHitPoint = this.pixelToWorld( cc.v2(x,y) );
-        var minDist = Number.MAX_VALUE;
-        var resultNode;
-
-        var nodes = cc.engine.getIntersectionList( new cc.Rect(worldHitPoint.x, worldHitPoint.y, 1, 1) );
-        nodes.forEach( function ( node ) {
-            var aabb = node.getWorldBounds();
-            // TODO: calculate the OBB center instead
-            var dist = worldHitPoint.sub(aabb.center).magSqr();
-            if ( dist < minDist ) {
-                minDist = dist;
-                resultNode = node;
-            }
-        });
-
-        return resultNode;
-    },
-
-    rectHitTest: function ( x, y, w, h ) {
-        var v1 = this.pixelToWorld( cc.v2(x,y) );
-        var v2 = this.pixelToWorld( cc.v2(x+w,y+h) );
-        var worldRect = cc.Rect.fromMinMax(v1,v2);
-
-        var results = [];
-        var nodes = cc.engine.getIntersectionList(worldRect);
-        nodes.forEach( function ( node ) {
-            results.push(node);
-        });
-
-        return results;
     },
 
     // DISABLE
@@ -470,7 +341,7 @@ Editor.registerElement({
 
                     this.$.gizmosView.updateSelectRect( x, y, offsetx, offsety );
 
-                    var nodes = this.rectHitTest( x, y, offsetx, offsety );
+                    var nodes = _Scene.rectHitTest( x, y, offsetx, offsety );
                     var i, ids;
 
                     // toggle mode will always act added behaviour when we in rect-select-state
@@ -496,7 +367,7 @@ Editor.registerElement({
                 function ( event, dx, dy, offsetx, offsety ) {
                     var magSqr = offsetx*offsetx + offsety*offsety;
                     if ( magSqr < 2.0 * 2.0 ) {
-                        var node = this.hitTest( startx, starty );
+                        var node = _Scene.hitTest( startx, starty );
 
                         if ( toggleMode ) {
                             if ( node ) {
@@ -556,7 +427,7 @@ Editor.registerElement({
     _onMouseMove: function ( event ) {
         event.stopPropagation();
 
-        var node = this.hitTest( event.offsetX, event.offsetY );
+        var node = _Scene.hitTest( event.offsetX, event.offsetY );
         var id = node ? node.uuid : null;
         Editor.Selection.hover( 'node', id );
     },

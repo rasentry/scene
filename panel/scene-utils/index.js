@@ -1,6 +1,22 @@
 'use strict';
 
 const Async = require('async');
+const Url = require('fire-url');
+
+function getTopLevelNodes (nodes) {
+  return Editor.Utils.arrayCmpFilter(nodes, (a, b) => {
+    if (a === b) {
+      return 0;
+    }
+    if (b.isChildOf(a)) {
+      return 1;
+    }
+    if (a.isChildOf(b)) {
+      return -1;
+    }
+    return 0;
+  });
+}
 
 function enterEditMode ( stashedScene, next ) {
   if ( stashedScene ) {
@@ -27,6 +43,23 @@ function createScene (sceneJson, next) {
   cc.AssetLibrary.loadJson(sceneJson, next);
 }
 
+
+function callOnFocusInTryCatch (c) {
+  try {
+    c.onFocusInEditor();
+  } catch (e) {
+    cc._throw(e);
+  }
+}
+
+function callOnLostFocusInTryCatch (c) {
+  try {
+    c.onLostFocusInEditor();
+  } catch (e) {
+    cc._throw(e);
+  }
+}
+
 let Scene = {
   init ( sceneView, gizmosView ) {
     this.view = sceneView;
@@ -47,6 +80,15 @@ let Scene = {
     // reset cc.engine editing state
     cc.engine.animatingInEditMode = false;
   },
+
+  softReload (compiled) {
+    // hot update new compiled scripts
+    Editor.Sandbox.reload(compiled);
+  },
+
+  // ==============================
+  // scene operation
+  // ==============================
 
   defaultScene () {
     let scene = new cc.Scene();
@@ -144,9 +186,510 @@ let Scene = {
     }
   },
 
-  softReload (compiled) {
-    // hot update new compiled scripts
-    Editor.Sandbox.reload(compiled);
+  saveScene ( cb ) {
+    var sceneAsset = new cc.SceneAsset();
+    sceneAsset.scene = cc.director.getScene();
+
+    // NOTE: we stash scene because we want to save and reload the connected browser
+    this.stashScene(() => {
+      // reload connected browser
+      Editor.sendToCore('app:reload-on-device');
+      Editor.sendToCore('scene:save-scene', Editor.serialize(sceneAsset));
+
+      if ( cb ) {
+        cb ();
+      }
+    });
+  },
+
+  currentScene () {
+    return cc.director.getScene();
+  },
+
+  // ==============================
+  // node operation
+  // ==============================
+
+  createNodes ( assetUuids, parentID ) {
+    let parentNode;
+    if ( parentID ) {
+      parentNode = cc.engine.getInstanceById(parentID);
+    }
+    if ( !parentNode ) {
+      parentNode = cc.director.getScene();
+    }
+
+    Editor.Selection.unselect(
+      'node',
+      Editor.Selection.curSelection('node'),
+      false
+    );
+
+    //
+    Async.each( assetUuids, ( uuid, done ) => {
+      Async.waterfall([
+        next => {
+          Editor.createNode(uuid, next);
+        },
+
+        ( node, next ) => {
+          let nodeID;
+          if ( node ) {
+            nodeID = node.uuid;
+
+            if ( parentNode ) {
+              node.parent = parentNode;
+            }
+            let centerX = cc.game.canvas.width / 2;
+            let centerY = cc.game.canvas.height / 2;
+            node.scenePosition = this.view.pixelToScene( cc.v2(centerX, centerY) );
+
+            _Scene.Undo.recordCreateNode(nodeID);
+          }
+
+          next ( null, nodeID );
+        }
+
+      ], ( err, nodeID ) => {
+        if ( err ) {
+          Editor.failed( `Failed to drop asset ${uuid}, message: ${err.stack}` );
+          return;
+        }
+
+        if ( nodeID ) {
+          Editor.Selection.select('node', nodeID, false, false );
+        }
+
+        cc.engine.repaintInEditMode();
+        done();
+      });
+    }, err => {
+      _Scene.Undo.commit();
+
+      if ( err ) {
+        Editor.Selection.cancel();
+        return;
+      }
+
+      Editor.Selection.confirm();
+    });
+  },
+
+  createNodesAt ( assetUuids, x, y ) {
+    Editor.Selection.cancel();
+    Editor.Selection.clear('node');
+
+    Async.each(assetUuids, ( uuid, done ) => {
+      Async.waterfall([
+        next => {
+          Editor.createNode(uuid, next);
+        },
+
+        ( node, next ) => {
+          var nodeID;
+          if ( node ) {
+            nodeID = node.uuid;
+
+            node.setPosition(this.view.pixelToScene( cc.v2(x,y) ));
+            node.parent = cc.director.getScene();
+          }
+
+          _Scene.Undo.recordCreateNode(nodeID);
+          _Scene.Undo.commit();
+
+          next ( null, nodeID );
+        },
+
+      ], ( err, nodeID ) => {
+        if ( err ) {
+          Editor.failed( `Failed to drop asset ${uuid}, message: ${err.stack}` );
+          return;
+        }
+
+        if ( nodeID ) {
+          Editor.Selection.select('node', nodeID, false, true );
+        }
+
+        cc.engine.repaintInEditMode();
+        done();
+      });
+    });
+  },
+
+  createNodeByClassID ( name, classID, referenceID, isSibling ) {
+    let parent;
+
+    if ( referenceID ) {
+      parent = cc.engine.getInstanceById(referenceID);
+      if ( isSibling ) {
+        parent = parent.parent;
+      }
+    }
+
+    if ( !parent ) {
+      parent = cc.director.getScene();
+    }
+
+    let node = new cc.Node(name);
+    node.parent = parent;
+
+    let centerX = cc.game.canvas.width / 2;
+    let centerY = cc.game.canvas.height / 2;
+    node.scenePosition = this.view.pixelToScene( cc.v2(centerX, centerY) );
+
+    if (classID) {
+      // add component
+      let CompCtor = cc.js._getClassById(classID);
+      if (CompCtor) {
+        node.addComponent(CompCtor);
+      } else {
+        Editor.error( `Unknown node to create: ${classID}` );
+      }
+    }
+
+    cc.engine.repaintInEditMode();
+    Editor.Selection.select('node', node.uuid, true, true );
+
+    _Scene.Undo.recordCreateNode(node.uuid);
+    _Scene.Undo.commit();
+  },
+
+  createNodeByPrefab ( name, prefabID, referenceID, isSibling ) {
+    let parent;
+
+    Editor.createNode(prefabID, (err, node) => {
+      if ( err ) {
+        Editor.error(err);
+        return;
+      }
+
+      Editor.PrefabUtils.unlinkPrefab(node);
+
+      node.name = name;
+
+      if ( referenceID ) {
+        parent = cc.engine.getInstanceById(referenceID);
+        if ( isSibling ) {
+          parent = parent.parent;
+        }
+      }
+      if ( !parent ) {
+        parent = cc.director.getScene();
+      }
+
+      node.parent = parent;
+
+      let centerX = cc.game.canvas.width / 2;
+      let centerY = cc.game.canvas.height / 2;
+      node.scenePosition = this.view.pixelToScene( cc.v2(centerX, centerY) );
+
+      cc.engine.repaintInEditMode();
+      Editor.Selection.select('node', node.uuid, true, true );
+
+      _Scene.Undo.recordCreateNode(node.uuid);
+      _Scene.Undo.commit();
+    });
+  },
+
+  deleteNodes ( ids ) {
+    for (let i = 0; i < ids.length; i++) {
+      let id = ids[i];
+      let node = cc.engine.getInstanceById(id);
+      if (node) {
+        node._destroyForUndo(() => {
+          this.Undo.recordDeleteNode(id);
+        });
+      }
+    }
+    this.Undo.commit();
+    Editor.Selection.unselect('node', ids, true);
+  },
+
+  duplicateNodes ( ids ) {
+    let nodes = [];
+    for ( let i = 0; i < ids.length; ++i ) {
+      let node = cc.engine.getInstanceById(ids[i]);
+      if (node) {
+        nodes.push(node);
+      }
+    }
+
+    let results = getTopLevelNodes(nodes);
+
+    // duplicate results
+    let clones = [];
+    results.forEach(node => {
+      let clone = cc.instantiate(node);
+      clone.parent = node.parent;
+
+      clones.push(clone.uuid);
+    });
+
+    // select the last one
+    Editor.Selection.select('node', clones);
+  },
+
+  moveNodes ( ids, parentID, nextSiblingId ) {
+    function getSiblingIndex (node) {
+      return node._parent._children.indexOf(node);
+    }
+
+    let parent;
+
+    if (parentID) {
+      parent = cc.engine.getInstanceById(parentID);
+    } else {
+      parent = cc.director.getScene();
+    }
+
+    let next = nextSiblingId ? cc.engine.getInstanceById(nextSiblingId) : null;
+    let nextIndex = next ? getSiblingIndex(next) : -1;
+
+    for (let i = 0; i < ids.length; i++) {
+      let id = ids[i];
+      let node = cc.engine.getInstanceById(id);
+
+      if (node && (!parent || !parent.isChildOf(node))) {
+        _Scene.Undo.recordMoveNode(id);
+
+        if (node.parent !== parent) {
+          // keep world transform not changed
+          let worldPos = node.worldPosition;
+          let worldRotation = node.worldRotation;
+          let lossyScale = node.worldScale;
+
+          node.parent = parent;
+
+          // restore world transform
+          node.worldPosition = worldPos;
+          node.worldRotation = worldRotation;
+          if (parent) {
+            lossyScale.x /= parent.worldScale.x;
+            lossyScale.y /= parent.worldScale.y;
+            node.scale = lossyScale;
+          } else {
+            node.scale = lossyScale;
+          }
+
+          if (next) {
+            node.setSiblingIndex(nextIndex);
+            ++nextIndex;
+          }
+        } else if (next) {
+          let lastIndex = getSiblingIndex(node);
+          let newIndex = nextIndex;
+
+          if (newIndex > lastIndex) {
+            --newIndex;
+          }
+
+          if (newIndex !== lastIndex) {
+            node.setSiblingIndex(newIndex);
+
+            if (lastIndex > newIndex) {
+              ++nextIndex;
+            } else {
+              --nextIndex;
+            }
+          }
+        } else {
+          // move to bottom
+          node.setSiblingIndex(-1);
+        }
+      }
+    }
+
+    _Scene.Undo.commit();
+  },
+
+  // ==============================
+  // prefab
+  // ==============================
+
+  createPrefab ( nodeID, baseUrl ) {
+    let node = cc.engine.getInstanceById(nodeID);
+    let prefab = Editor.PrefabUtils.createPrefabFrom(node);
+
+    let url = Url.join(baseUrl, node.name + '.prefab');
+    let json = Editor.serialize(prefab);
+
+    Editor.sendRequestToCore('scene:create-prefab', url, json, (err, uuid) => {
+      if (!err) {
+        Editor.PrefabUtils.savePrefabUuid(node, uuid);
+      }
+    });
+  },
+
+  applyPrefab ( nodeID ) {
+    let node = cc.engine.getInstanceById(nodeID);
+    if (!node || !node._prefab) {
+      return;
+    }
+
+    node = node._prefab.root;
+    let prefabUuid = node._prefab.asset._uuid;
+    let prefab = Editor.PrefabUtils.createPrefabFrom(node);
+    Editor.PrefabUtils.savePrefabUuid(node, prefabUuid);
+
+    let json = Editor.serialize(prefab);
+    Editor.sendToCore('scene:apply-prefab', prefabUuid, json);
+  },
+
+  revertPrefab ( nodeID ) {
+    let node = cc.engine.getInstanceById(nodeID);
+    if (!node || !node._prefab) {
+      return;
+    }
+
+    node = node._prefab.root;
+    Editor.PrefabUtils.revertPrefab(node);
+  },
+
+  // ==============================
+  // dump
+  // ==============================
+
+  dumpHierarchy () {
+    // TODO: move code from Editor.getHierarchyDump to here
+    return Editor.getHierarchyDump();
+  },
+
+  dumpNode ( nodeID ) {
+    let node = cc.engine.getInstanceById(nodeID);
+
+    // TODO: move code from Editor.getHierarchyDump to here
+    return Editor.getNodeDump(node);
+  },
+
+  // ==============================
+  // animation process
+  // ==============================
+
+  // TODO: by @2youyouo2, please move animation functions from scene.js to here
+
+  // ==============================
+  // selection
+  // ==============================
+
+  select ( ids ) {
+    this.gizmosView.select(ids);
+  },
+
+  unselect ( ids ) {
+    this.gizmosView.unselect(ids);
+  },
+
+  hoverin ( id ) {
+    this.gizmosView.hoverin(id);
+  },
+
+  hoverout ( id ) {
+    this.gizmosView.hoverout(id);
+  },
+
+  activate ( id ) {
+    let node = cc.engine.getInstanceById(id);
+    if (!node) {
+      return;
+    }
+
+    // process animation node
+    let isAnimationNode = node.getComponent(cc.Animation);
+
+    if (isAnimationNode) {
+      let dump = Editor.getAnimationNodeDump(node);
+      Editor.sendToWindows('scene:animation-node-activated', dump);
+    }
+
+    // Another Choose, select AnimationNode's child will also trigger scene:animation-node-activated
+    // var animationNode = node;
+    // var isAnimationNode = animationNode.getComponent(cc.Animation);;
+
+    // while (animationNode && !(animationNode instanceof cc.Scene)) {
+    //     isAnimationNode = animationNode.getComponent(cc.Animation);
+    //     if (isAnimationNode) {
+    //         var dump = Editor.getAnimationNodeDump(animationNode);
+    //         Editor.sendToWindows('scene:animation-node-activated', dump);
+    //         break;
+    //     }
+
+    //     animationNode = animationNode.parent;
+    // }
+
+    // normal process
+    for (let i = 0; i < node._components.length; ++i) {
+      let comp = node._components[0];
+      if (comp.constructor._executeInEditMode && comp.isValid) {
+        if (comp.onFocusInEditor) {
+          callOnFocusInTryCatch(comp);
+        }
+
+        if (comp.constructor._playOnFocus) {
+          cc.engine.animatingInEditMode = true;
+        }
+      }
+    }
+  },
+
+  deactivate ( id ) {
+    var node = cc.engine.getInstanceById(id);
+    if (!node || !node.isValid) {
+      return;
+    }
+
+    for (var i = 0; i < node._components.length; ++i) {
+      var comp = node._components[0];
+      if (comp.constructor._executeInEditMode && comp.isValid) {
+        if (comp.onLostFocusInEditor) {
+          callOnLostFocusInTryCatch(comp);
+        }
+
+        if (comp.constructor._playOnFocus) {
+          cc.engine.animatingInEditMode = false;
+        }
+      }
+    }
+  },
+
+  // ==============================
+  // hit-test
+  // ==============================
+
+
+  hitTest ( x, y ) {
+    // TODO
+    // this.$.gizmosView.rectHitTest( x, y, 1, 1 );
+
+    let worldHitPoint = this.view.pixelToWorld( cc.v2(x,y) );
+    let minDist = Number.MAX_VALUE;
+    let resultNode;
+
+    let nodes = cc.engine.getIntersectionList( new cc.Rect(worldHitPoint.x, worldHitPoint.y, 1, 1) );
+    nodes.forEach(node => {
+      let aabb = node.getWorldBounds();
+      // TODO: calculate the OBB center instead
+      let dist = worldHitPoint.sub(aabb.center).magSqr();
+      if ( dist < minDist ) {
+        minDist = dist;
+        resultNode = node;
+      }
+    });
+
+    return resultNode;
+  },
+
+  rectHitTest ( x, y, w, h ) {
+    let v1 = this.view.pixelToWorld( cc.v2(x,y) );
+    let v2 = this.view.pixelToWorld( cc.v2(x+w,y+h) );
+    let worldRect = cc.Rect.fromMinMax(v1,v2);
+
+    let results = [];
+    let nodes = cc.engine.getIntersectionList(worldRect);
+    nodes.forEach(node => {
+      results.push(node);
+    });
+
+    return results;
   },
 
   // DISABLE
