@@ -92,7 +92,11 @@
         "selection:activated",
         "selection:deactivated",
         "selection:hoverin",
-        "selection:hoverout"
+        "selection:hoverout",
+
+        "scene:show-trajectory-gizmo",
+        "scene:hide-trajectory-gizmo",
+        "scene:trajectory-state-changed"
       ],
       "profiles": {
         "local": {

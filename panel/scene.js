@@ -1124,7 +1124,10 @@
             }
 
             var time = info.time;
-            if (time > aniState.duration) time = aniState.duration;
+            if (time > aniState.duration) {
+                time = aniState.duration;
+            }
+
 
             comp.setCurrentTime(time, clipName);
             comp.sample();
@@ -1141,6 +1144,9 @@
                     Editor.error(err);
                     return;
                 }
+
+                // need to update animation time
+                comp.setCurrentTime(info.time, info.clip);
 
                 comp._updateClip(clip);
                 cc.engine.repaintInEditMode();
@@ -1236,5 +1242,36 @@
             }
             this.$.sceneView.hoverout(id);
         },
+
+        'scene:show-trajectory-gizmo': function ( info ) {
+            var gizmosView = this.$.sceneView.$.gizmosView;
+
+            cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
+                var root = cc.engine.getInstanceById(info.rootId);
+
+                for (var i = 0; i < info.nodeIds.length; i++) {
+                    var node = cc.engine.getInstanceById(info.nodeIds[i]);
+                    if (!node) continue;
+
+                    if (!node.trajectoryGizmo) {
+                        node.trajectoryGizmo = new Editor.gizmos.trajectory(gizmosView, node);
+                    }
+                    node.trajectoryGizmo.show(root, clip, info.childPaths[i]);
+                }
+            });
+        },
+
+        'scene:hide-trajectory-gizmo': function ( info ) {
+            for (var i = 0; i < info.nodeIds.length; i++) {
+                var node = cc.engine.getInstanceById(info.nodeIds[i]);
+                if (node && node.trajectoryGizmo) {
+                    node.trajectoryGizmo.hide();
+                }
+            }
+        },
+
+        'scene:trajectory-state-changed': function (info) {
+            Editor.gizmos.trajectory.state = info.state;
+        }
     });
 })();
