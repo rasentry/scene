@@ -35,6 +35,10 @@ var _updateGizmos = function (node) {
     node.gizmo.update();
   }
 
+  if ( node.trajectoryGizmo ) {
+    node.trajectoryGizmo.update();
+  }
+
   // TODO:
   // components
 

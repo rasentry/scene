@@ -85,13 +85,18 @@
         "scene:animation-time-changed",
         "scene:animation-clip-changed",
         "scene:new-clip",
+        "scene:animation-current-clip-changed",
 
         "selection:selected",
         "selection:unselected",
         "selection:activated",
         "selection:deactivated",
         "selection:hoverin",
-        "selection:hoverout"
+        "selection:hoverout",
+
+        "scene:show-trajectory-gizmo",
+        "scene:hide-trajectory-gizmo",
+        "scene:trajectory-state-changed"
       ],
       "profiles": {
         "local": {
