@@ -392,15 +392,17 @@
         },
 
         'editor:start-recording': function () {
-            _Scene.AnimUtils._recording = true;
-            // let data = Editor._recordObject(_Scene.AnimUtils.curRootNode);
-            // TODO:
+            var AnimUtils = _Scene.AnimUtils;
+
+            AnimUtils._recording = true;
+            AnimUtils._recordingData = Editor._recordObject(_Scene.AnimUtils.curRootNode);
         },
 
         'editor:stop-recording': function () {
-            _Scene.AnimUtils._recording = false;
-            // Editor._restoreObject(data);
-            // TODO:
+            var AnimUtils = _Scene.AnimUtils;
+
+            AnimUtils._recording = false;
+            Editor._restoreObject(AnimUtils.curRootNode, AnimUtils.reacordData);
         },
 
         'scene:is-ready': function ( sessionID ) {
