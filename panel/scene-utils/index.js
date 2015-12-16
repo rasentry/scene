@@ -593,28 +593,7 @@ let Scene = {
       return;
     }
 
-    // process animation node
-    let isAnimationNode = node.getComponent(cc.Animation);
-
-    if (isAnimationNode) {
-      let dump = Editor.getAnimationNodeDump(node);
-      Editor.sendToWindows('scene:animation-node-activated', dump);
-    }
-
-    // Another Choose, select AnimationNode's child will also trigger scene:animation-node-activated
-    // var animationNode = node;
-    // var isAnimationNode = animationNode.getComponent(cc.Animation);;
-
-    // while (animationNode && !(animationNode instanceof cc.Scene)) {
-    //     isAnimationNode = animationNode.getComponent(cc.Animation);
-    //     if (isAnimationNode) {
-    //         var dump = Editor.getAnimationNodeDump(animationNode);
-    //         Editor.sendToWindows('scene:animation-node-activated', dump);
-    //         break;
-    //     }
-
-    //     animationNode = animationNode.parent;
-    // }
+    _Scene.AnimUtils.activate(node);
 
     // normal process
     for (let i = 0; i < node._components.length; ++i) {
@@ -636,6 +615,8 @@ let Scene = {
     if (!node || !node.isValid) {
       return;
     }
+
+    _Scene.AnimUtils.deactivate(node);
 
     for (var i = 0; i < node._components.length; ++i) {
       var comp = node._components[0];

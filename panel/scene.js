@@ -756,103 +756,29 @@
         },
 
         'scene:animation-state-changed': function (info) {
-            var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.Animation);
-            var aniState = comp.getAnimationState(info.clip);
-
-            var state = info.state;
-            var clipName = info.clip;
-
-            if (state === 'play') {
-                comp.play(clipName);
-                cc.engine.animatingInEditMode = true;
-            }
-            else if (state === 'pause') {
-                if (aniState.isPlaying) {
-                    comp.pause(clipName);
-                }
-                cc.engine.animatingInEditMode = false;
-            }
-            else if (state === 'stop') {
-                comp.stop(clipName);
-                cc.engine.animatingInEditMode = false;
-            }
+            _Scene.AnimUtils.setCurrentPlayState(info);
         },
 
         'scene:query-animation-time': function (sessionID, info) {
-            var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.Animation);
-            var aniState = comp.getAnimationState(info.clip);
+            var timeInfo = _Scene.AnimUtils.getAnimationTime(info);
 
-            var wrappedInfo = aniState.getWrappedInfo(aniState.time);
-
-            Editor.sendToWindows( 'scene:reply-animation-time', sessionID, {
-                clip: info.clip,
-                time: wrappedInfo.time,
-                isPlaying: aniState.isPlaying
-            });
+            Editor.sendToWindows( 'scene:reply-animation-time', sessionID, timeInfo);
         },
 
         'scene:animation-time-changed': function (info) {
-            var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.Animation);
-            var aniState = comp.getAnimationState(info.clip);
-
-            var clipName = info.clip;
-
-            if (!aniState.isPlaying) {
-                comp.play(clipName);
-                comp.pause(clipName);
-            }
-
-            var time = info.time;
-            if (time > aniState.duration) {
-                time = aniState.duration;
-            }
-
-
-            comp.setCurrentTime(time, clipName);
-            comp.sample();
-
-            cc.engine.repaintInEditMode();
+            _Scene.AnimUtils.setAnimationTime(info);
         },
 
         'scene:animation-clip-changed': function (info) {
-            var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.Animation);
-
-            cc.AssetLibrary.loadJson(info.data, function (err, clip) {
-                if (err) {
-                    Editor.error(err);
-                    return;
-                }
-
-                // need to update animation time
-                comp.setCurrentTime(info.time, info.clip);
-
-                comp._updateClip(clip);
-                cc.engine.repaintInEditMode();
-            });
+            _Scene.AnimUtils.updateClip(info);
         },
 
         'scene:new-clip': function (info) {
-            var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.Animation);
-
-            cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
-                comp.addClip(clip);
-            });
+            _Scene.AnimUtils.addClip(info);
         },
 
         'scene:animation-current-clip-changed': function (info) {
-            var node = cc.engine.getInstanceById(info.rootId);
-            if (!node) return;
-
-            var comp = node.getComponent(cc.Animation);
-            var clipName = info.clip;
-
-            comp.play(clipName);
-            comp.pause(clipName);
+            _Scene.AnimUtils.changeCurrentClip(info);
         },
 
         'selection:selected': function ( type, ids ) {
@@ -900,30 +826,11 @@
         },
 
         'scene:show-trajectory-gizmo': function ( info ) {
-            var gizmosView = this.$.sceneView.$.gizmosView;
-
-            cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
-                var root = cc.engine.getInstanceById(info.rootId);
-
-                for (var i = 0; i < info.nodeIds.length; i++) {
-                    var node = cc.engine.getInstanceById(info.nodeIds[i]);
-                    if (!node) continue;
-
-                    if (!node.trajectoryGizmo) {
-                        node.trajectoryGizmo = new Editor.gizmos.trajectory(gizmosView, node);
-                    }
-                    node.trajectoryGizmo.show(root, clip, info.childPaths[i]);
-                }
-            });
+            _Scene.AnimUtils.showTrajectoryGizmo(info);
         },
 
         'scene:hide-trajectory-gizmo': function ( info ) {
-            for (var i = 0; i < info.nodeIds.length; i++) {
-                var node = cc.engine.getInstanceById(info.nodeIds[i]);
-                if (node && node.trajectoryGizmo) {
-                    node.trajectoryGizmo.hide();
-                }
-            }
+            _Scene.AnimUtils.hideTrajectoryGizmo(info);
         },
 
         'scene:trajectory-state-changed': function (info) {
