@@ -601,6 +601,9 @@ let Scene = {
       Editor.sendToWindows('scene:animation-node-activated', dump);
     }
 
+    // TODO: @2youyouo2: please assign it
+    // _Scene.AnimUtils.curRootNode =
+
     // Another Choose, select AnimationNode's child will also trigger scene:animation-node-activated
     // var animationNode = node;
     // var isAnimationNode = animationNode.getComponent(cc.Animation);;
