@@ -535,7 +535,7 @@
 
             var animationNode = node;
             while (animationNode) {
-                var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
+                var isAnimationNode = animationNode.getComponent(cc.Animation);
                 if (isAnimationNode) {
                     break;
                 }
@@ -1068,7 +1068,7 @@
 
         'scene:animation-state-changed': function (info) {
             var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.AnimationComponent);
+            var comp = node.getComponent(cc.Animation);
             var aniState = comp.getAnimationState(info.clip);
 
             var state = info.state;
@@ -1092,7 +1092,7 @@
 
         'scene:query-animation-time': function (sessionID, info) {
             var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.AnimationComponent);
+            var comp = node.getComponent(cc.Animation);
             var aniState = comp.getAnimationState(info.clip);
 
             var wrappedInfo = aniState.getWrappedInfo(aniState.time);
@@ -1106,7 +1106,7 @@
 
         'scene:animation-time-changed': function (info) {
             var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.AnimationComponent);
+            var comp = node.getComponent(cc.Animation);
             var aniState = comp.getAnimationState(info.clip);
 
             var clipName = info.clip;
@@ -1127,7 +1127,7 @@
 
         'scene:animation-clip-changed': function (info) {
             var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.AnimationComponent);
+            var comp = node.getComponent(cc.Animation);
 
             cc.AssetLibrary.loadJson(info.data, function (err, clip) {
                 if (err) {
@@ -1142,7 +1142,7 @@
 
         'scene:new-clip': function (info) {
             var node = cc.engine.getInstanceById(info.nodeId);
-            var comp = node.getComponent(cc.AnimationComponent);
+            var comp = node.getComponent(cc.Animation);
 
             cc.AssetLibrary.loadAsset(info.clipUuid, function (err, clip) {
                 comp.addClip(clip);
@@ -1170,7 +1170,7 @@
 
             var node = cc.engine.getInstanceById(id);
             if (node) {
-                var isAnimationNode = node.getComponent(cc.AnimationComponent);
+                var isAnimationNode = node.getComponent(cc.Animation);
 
                 if (isAnimationNode) {
                     var dump = Editor.getAnimationNodeDump(node);
@@ -1180,10 +1180,10 @@
                 // Another Choose, select AnimationNode's child will also trigger scene:animation-node-activated
 
                 // var animationNode = node;
-                // var isAnimationNode = animationNode.getComponent(cc.AnimationComponent);;
+                // var isAnimationNode = animationNode.getComponent(cc.Animation);;
 
                 // while (animationNode && !(animationNode instanceof cc.Scene)) {
-                //     isAnimationNode = animationNode.getComponent(cc.AnimationComponent);
+                //     isAnimationNode = animationNode.getComponent(cc.Animation);
                 //     if (isAnimationNode) {
                 //         var dump = Editor.getAnimationNodeDump(animationNode);
                 //         Editor.sendToWindows('scene:animation-node-activated', dump);

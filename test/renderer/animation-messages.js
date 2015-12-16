@@ -13,7 +13,7 @@ describe('scene messages', function () {
 
     beforeEach(function () {
         node = new cc.Node();
-        animation = node.addComponent(cc.AnimationComponent);
+        animation = node.addComponent(cc.Animation);
 
         clip = Helper.newAnimClip('test', 2, {
             props: {
