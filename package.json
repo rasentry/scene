@@ -13,7 +13,7 @@
   },
   "main": "main.js",
   "menus": {
-    "Panel/Scene": {
+    "i18n:MAIN_MENU.panel.title/i18n:MAIN_MENU.panel.scene": {
       "icon": "panel/icon.png",
       "accelerator": "CmdOrCtrl+1",
       "message": "scene:open"
@@ -23,7 +23,7 @@
     "panel": {
       "frame": "panel/scene.html",
       "type": "dockable",
-      "title": "Scene",
+      "title": "i18n:MAIN_MENU.panel.scene",
       "icon": "panel/icon.png",
       "width": "auto",
       "height": "auto",

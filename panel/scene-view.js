@@ -61,6 +61,10 @@ Editor.registerElement({
         this.addEventListener('mousedown', this._onCaptureMousedown.bind(this), true);
     },
 
+    _T: function (text_id) {
+        return Editor.T(text_id);
+    },
+
     detached: function () {
         clearInterval(this._initTimer);
     },
