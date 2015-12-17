@@ -99,13 +99,18 @@ let Scene = {
     cc.director.runScene(scene);
   },
 
-  newScene () {
+  newScene ( cb ) {
     this.reset();
     this.defaultScene();
     this.view.adjustToCenter(20);
 
     cc.engine.repaintInEditMode();
-    Editor.remote.currentSceneUuid = null;
+
+    Editor.sendRequestToCore('scene:set-current-scene', null, () => {
+      if ( cb ) {
+        cb ();
+      }
+    });
   },
 
   loadSceneByUuid (uuid, cb) {
@@ -115,13 +120,18 @@ let Scene = {
       this.view.adjustToCenter(20);
       cc.engine.repaintInEditMode();
 
-      if (!err) {
-        Editor.remote.currentSceneUuid = uuid;
+      if (err) {
+        if ( cb ) {
+          cb (err);
+        }
+        return;
       }
 
-      if ( cb ) {
-        cb (err);
-      }
+      Editor.sendRequestToCore('scene:set-current-scene', uuid, () => {
+        if ( cb ) {
+          cb ();
+        }
+      });
     });
   },
 

@@ -422,9 +422,9 @@
         'scene:new-scene': function () {
             this.$.loader.hidden = false;
             Editor.sendToAll('scene:reloading');
-            _Scene.newScene();
-
-            this.fire('scene-view-ready');
+            _Scene.newScene(() => {
+                this.fire('scene-view-ready');
+            });
         },
 
         'scene:play-on-device': function () {
