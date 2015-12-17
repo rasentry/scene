@@ -3,7 +3,7 @@
 (() => {
   let AnimUtils = {
     _recording: false,
-    _recordingData: null,
+    _recordingData: {},
 
     curRootNode: null,
     curEditNode: null,

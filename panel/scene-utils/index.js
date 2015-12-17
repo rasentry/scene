@@ -671,6 +671,33 @@ let Scene = {
     return results;
   },
 
+  deepQueryNode (root, includeSelf, cb) {
+    if (!root) {
+      return;
+    }
+
+    if (!cb) {
+      Editor.warn('deepQueryNode need a callback');
+      return;
+    }
+
+    function traversal (node, cb) {
+      var children = node.children;
+
+      for (var i = 0; i<children.length; i++) {
+        var child = children[i];
+
+        if (!cb( child )) break;
+
+        traversal(child, cb);
+      }
+    }
+
+    traversal(root, cb);
+
+    if (includeSelf) cb(root);
+  }
+
   // DISABLE
   // reloadScene ( cb ) {
   //   Async.waterfall([

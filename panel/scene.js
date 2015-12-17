@@ -395,14 +395,24 @@
             var AnimUtils = _Scene.AnimUtils;
 
             AnimUtils._recording = true;
-            AnimUtils._recordingData = Editor._recordObject(_Scene.AnimUtils.curRootNode);
+            var recordingData = AnimUtils._recordingData;
+
+            _Scene.deepQueryNode(_Scene.AnimUtils.curRootNode, true, node => {
+                var data = Editor._recordNode(node);
+                recordingData[node.uuid] = data;
+            });
         },
 
         'editor:stop-recording': function () {
             var AnimUtils = _Scene.AnimUtils;
 
             AnimUtils._recording = false;
-            Editor._restoreObject(AnimUtils.curRootNode, AnimUtils.reacordData);
+            var recordingData = AnimUtils._recordingData;
+
+            _Scene.deepQueryNode(_Scene.AnimUtils.curRootNode, true, node => {
+                var data = recordingData[node.uuid];
+                Editor._restoreNode(node, data);
+            });
         },
 
         'scene:is-ready': function ( sessionID ) {
