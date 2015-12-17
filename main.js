@@ -44,6 +44,12 @@ function _showSaveDialog () {
     }
 }
 
+function _setCurrentScene ( uuid ) {
+    Editor.currentSceneUuid = uuid;
+    Editor._projectProfile['last-edit'] = Editor.currentSceneUuid;
+    Editor._projectProfile.save();
+}
+
 module.exports = {
     load () {
     },
@@ -86,8 +92,6 @@ module.exports = {
                 }
 
                 let meta = result.meta;
-                Editor.currentSceneUuid = meta.uuid;
-
                 Editor.sendToAll('asset-db:asset-changed', {
                     type: meta.assetType(),
                     uuid: meta.uuid,
@@ -103,7 +107,7 @@ module.exports = {
                                          return;
                 }
 
-                Editor.currentSceneUuid = results[0].uuid;
+                _setCurrentScene(results[0].uuid);
 
                 Editor.sendToAll('asset-db:assets-created', results);
                 Editor.sendToAll('scene:saved');
@@ -191,5 +195,10 @@ module.exports = {
 
     'scene:update-title' ( dirty ) {
         _updateTitile(dirty);
-    }
+    },
+
+    'scene:set-current-scene' ( reply, uuid ) {
+        _setCurrentScene(uuid);
+        reply();
+    },
 };
