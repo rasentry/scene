@@ -593,31 +593,7 @@ let Scene = {
       return;
     }
 
-    // process animation node
-    let isAnimationNode = node.getComponent(cc.Animation);
-
-    if (isAnimationNode) {
-      let dump = Editor.getAnimationNodeDump(node);
-      Editor.sendToWindows('scene:animation-node-activated', dump);
-    }
-
-    // TODO: @2youyouo2: please assign it
-    // _Scene.AnimUtils.curRootNode =
-
-    // Another Choose, select AnimationNode's child will also trigger scene:animation-node-activated
-    // var animationNode = node;
-    // var isAnimationNode = animationNode.getComponent(cc.Animation);;
-
-    // while (animationNode && !(animationNode instanceof cc.Scene)) {
-    //     isAnimationNode = animationNode.getComponent(cc.Animation);
-    //     if (isAnimationNode) {
-    //         var dump = Editor.getAnimationNodeDump(animationNode);
-    //         Editor.sendToWindows('scene:animation-node-activated', dump);
-    //         break;
-    //     }
-
-    //     animationNode = animationNode.parent;
-    // }
+    _Scene.AnimUtils.activate(node);
 
     // normal process
     for (let i = 0; i < node._components.length; ++i) {
@@ -694,6 +670,33 @@ let Scene = {
 
     return results;
   },
+
+  deepQueryNode (root, includeSelf, cb) {
+    if (!root) {
+      return;
+    }
+
+    if (!cb) {
+      Editor.warn('deepQueryNode need a callback');
+      return;
+    }
+
+    function traversal (node, cb) {
+      var children = node.children;
+
+      for (var i = 0; i<children.length; i++) {
+        var child = children[i];
+
+        if (!cb( child )) break;
+
+        traversal(child, cb);
+      }
+    }
+
+    traversal(root, cb);
+
+    if (includeSelf) cb(root);
+  }
 
   // DISABLE
   // reloadScene ( cb ) {
