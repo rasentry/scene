@@ -512,6 +512,186 @@ let Scene = {
     _Scene.Undo.commit();
   },
 
+  addComponent ( nodeID, compID ) {
+    if ( arguments.length === 1 ) {
+      compID = nodeID;
+      nodeID = Editor.Selection.curActivate('node');
+    }
+
+    if ( !nodeID ) {
+      Editor.warn('Please select a node first');
+      return;
+    }
+
+    if ( !compID ) {
+      Editor.error('Component ID is undefined');
+      return;
+    }
+
+    if (compID) {
+      let isScript = Editor.isUuid(compID);
+      let compCtor = cc.js._getClassById(compID);
+      if (!compCtor) {
+        if (isScript) {
+          Editor.error(`Can not find cc.Component in the script ${compID}.`);
+          return;
+        }
+
+        Editor.error(`Failed to get component ${compID}`);
+        return;
+      }
+
+      let node = cc.engine.getInstanceById(nodeID);
+      if (!node) {
+        Editor.error( `Can not find node ${nodeID}` );
+        return;
+      }
+
+      if (compCtor._disallowMultiple) {
+        let existing = node.getComponent(compCtor._disallowMultiple);
+        if (existing) {
+          let detail;
+          if (existing.constructor === compCtor) {
+            detail = 'Already contains the same component';
+          } else {
+            detail = `Already contains the same or derived component '${cc.js.getClassName(existing)}.`;
+          }
+
+          Editor.Dialog.messageBox({
+            type: 'warning',
+            buttons: ['OK'],
+            title: 'Warning',
+            message: `Can\'t add component '${cc.js.getClassName(compCtor)}'`,
+            detail: detail
+          });
+          return;
+        }
+      }
+
+      let comp = node.addComponent(compCtor);
+      _Scene.Undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
+      _Scene.Undo.commit();
+    }
+  },
+
+  removeComponent ( nodeID, compID ) {
+    let comp = cc.engine.getInstanceById(compID);
+    if (!comp) {
+      Editor.error( `Can not find component ${compID}` );
+      return;
+    }
+
+    let node = cc.engine.getInstanceById(nodeID);
+    if (!node) {
+      Editor.error( `Can not find node ${nodeID}` );
+      return;
+    }
+
+    let depend = node._getDependComponent(comp);
+    if (depend) {
+      Editor.Dialog.messageBox({
+        type: 'warning',
+        buttons: ['OK'],
+        title: 'Warning',
+        message: `Can\'t remove component '${cc.js.getClassName(comp)}'`,
+        detail: `${cc.js.getClassName(depend)} depends on it`
+      });
+      return;
+    }
+
+    comp._destroyForUndo(() => {
+      _Scene.Undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
+      _Scene.Undo.commit();
+    });
+  },
+
+  newProperty ( id, path, typeID ) {
+    let inst = cc.engine.getInstanceById(id);
+    if (!inst) {
+      return;
+    }
+
+    try {
+      let ctor = cc.js._getClassById(typeID);
+      if ( ctor ) {
+        let obj;
+        try {
+          obj = new ctor();
+        } catch (e) {
+          Editor.error(`Can not new property at ${path} for type ${cc.js.getClassName(ctor)}.\n${e.stack}`);
+          return;
+        }
+
+        _Scene.Undo.recordObject(id);
+        Editor.setDeepPropertyByPath(inst, path, obj, typeID);
+        cc.engine.repaintInEditMode();
+      }
+    } catch (e) {
+      Editor.warn(`Failed to new property ${inst.name} at ${path}, ${e.message}`);
+    }
+  },
+
+  resetProperty ( id, path, typeID ) {
+    let inst = cc.engine.getInstanceById(id);
+    if (!inst) {
+      return;
+    }
+
+    try {
+      _Scene.Undo.recordObject(id);
+      Editor.resetPropertyByPath(inst, path, typeID);
+      cc.engine.repaintInEditMode();
+    } catch (e) {
+      Editor.warn(`Failed to reset property ${inst.name} at ${path}, ${e.message}`);
+    }
+  },
+
+  setProperty ( id, path, typeID, value ) {
+    let inst = cc.engine.getInstanceById(id);
+    if (!inst) {
+      return;
+    }
+
+    try {
+      _Scene.Undo.recordObject(id);
+      Editor.setPropertyByPath(inst, path, value, typeID);
+      cc.engine.repaintInEditMode();
+    } catch (e) {
+      Editor.warn(`Failed to set property ${inst.name} to ${value} at ${path}, ${e.message}`);
+    }
+  },
+
+  walk (root, includeSelf, cb) {
+    if (!root) {
+      return;
+    }
+
+    if (!cb) {
+      Editor.warn('walk need a callback');
+      return;
+    }
+
+    function traversal (node, cb) {
+      let children = node.children;
+
+      for (let i = 0; i < children.length; i++) {
+        let child = children[i];
+
+        if ( !cb( child ) ) {
+          break;
+        }
+
+        traversal(child, cb);
+      }
+    }
+
+    traversal(root, cb);
+
+    if (includeSelf) {
+      cb(root);
+    }
+  },
+
   // ==============================
   // prefab
   // ==============================
@@ -644,7 +824,6 @@ let Scene = {
   // hit-test
   // ==============================
 
-
   hitTest ( x, y ) {
     // TODO
     // this.$.gizmosView.rectHitTest( x, y, 1, 1 );
@@ -680,33 +859,6 @@ let Scene = {
 
     return results;
   },
-
-  deepQueryNode (root, includeSelf, cb) {
-    if (!root) {
-      return;
-    }
-
-    if (!cb) {
-      Editor.warn('deepQueryNode need a callback');
-      return;
-    }
-
-    function traversal (node, cb) {
-      var children = node.children;
-
-      for (var i = 0; i<children.length; i++) {
-        var child = children[i];
-
-        if (!cb( child )) break;
-
-        traversal(child, cb);
-      }
-    }
-
-    traversal(root, cb);
-
-    if (includeSelf) cb(root);
-  }
 
   // DISABLE
   // reloadScene ( cb ) {

@@ -397,7 +397,7 @@
             AnimUtils._recording = true;
             var recordingData = AnimUtils._recordingData;
 
-            _Scene.deepQueryNode(_Scene.AnimUtils.curRootNode, true, node => {
+            _Scene.walk(_Scene.AnimUtils.curRootNode, true, node => {
                 var data = Editor._recordNode(node);
                 recordingData[node.uuid] = data;
             });
@@ -409,7 +409,7 @@
             AnimUtils._recording = false;
             var recordingData = AnimUtils._recordingData;
 
-            _Scene.deepQueryNode(_Scene.AnimUtils.curRootNode, true, node => {
+            _Scene.walk(_Scene.AnimUtils.curRootNode, true, node => {
                 var data = recordingData[node.uuid];
                 Editor._restoreNode(node, data);
             });
@@ -516,158 +516,23 @@
         },
 
         'scene:new-property': function ( info ) {
-            var nodeOrComp = cc.engine.getInstanceById(info.id);
-            if (nodeOrComp) {
-                try {
-                    var id = info.type;
-                    var ctor = cc.js._getClassById(id);
-                    if ( ctor ) {
-                        var obj;
-                        try {
-                            obj = new ctor();
-                        }
-                        catch (e) {
-                            Editor.error('Can not create new info.type directly.\nInner message: ' + e.stack);
-                            return;
-                        }
-                        Editor.setDeepPropertyByPath(nodeOrComp, info.path, obj, info.type);
-                        cc.engine.repaintInEditMode();
-                    }
-                }
-                catch (e) {
-                    Editor.warn('Failed to new property %s of %s to %s, ' + e.message,
-                                info.path, nodeOrComp.name, info.value);
-                }
-            }
+            _Scene.newProperty( info.id, info.path, info.type );
         },
 
         'scene:reset-property': function ( info ) {
-            var nodeOrComp = cc.engine.getInstanceById(info.id);
-            if (nodeOrComp) {
-                //
-                try {
-                    _Scene.Undo.recordObject(info.id);
-                    Editor.resetPropertyByPath(nodeOrComp, info.path, info.type);
-                    cc.engine.repaintInEditMode();
-                }
-                catch (e) {
-                    Editor.warn('Failed to reset property %s of %s, ' + e.message,
-                                info.path, nodeOrComp.name);
-                }
-            }
+            _Scene.resetProperty( info.id, info.path, info.type );
         },
 
         'scene:set-property': function ( info ) {
-            var nodeOrComp = cc.engine.getInstanceById(info.id);
-            if (nodeOrComp) {
-                // 兼容旧版 Inspector
-                if (info.mixinType) {
-                    nodeOrComp = nodeOrComp.getComponent(info.mixinType);
-                    if (!cc.isValid(nodeOrComp)) {
-                        return;
-                    }
-                }
-                //
-                try {
-                    _Scene.Undo.recordObject(info.id);
-                    Editor.setPropertyByPath(nodeOrComp, info.path, info.value, info.type);
-                    cc.engine.repaintInEditMode();
-                }
-                catch (e) {
-                    Editor.warn('Failed to set property %s of %s to %s, ' + e.message,
-                                info.path, nodeOrComp.name, info.value);
-                }
-            }
+            _Scene.setProperty( info.id, info.path, info.type, info.value );
         },
 
         'scene:add-component': function ( nodeID, compID ) {
-            if ( arguments.length === 1 ) {
-                compID = nodeID;
-                nodeID = Editor.Selection.curActivate('node');
-            }
-
-            if ( !nodeID ) {
-                Editor.warn('Please select a node first');
-                return;
-            }
-
-            if ( !compID ) {
-                Editor.error('Component ID is undefined');
-                return;
-            }
-
-            if (compID) {
-                let isScript = Editor.isUuid(compID);
-                let compCtor = cc.js._getClassById(compID);
-                if (!compCtor) {
-                    if (isScript) {
-                        return Editor.error(`Can not find cc.Component in the script ${compID}.`);
-                    } else {
-                        return Editor.error(`Failed to get component ${compID}`);
-                    }
-                }
-                //
-                let node = cc.engine.getInstanceById(nodeID);
-                if (!node) {
-                    Editor.error( `Can not find node ${nodeID}` );
-                    return;
-                }
-
-                if (compCtor._disallowMultiple) {
-                    let existing = node.getComponent(compCtor._disallowMultiple);
-                    if (existing) {
-                        let detail;
-                        if (existing.constructor === compCtor) {
-                            detail = 'Already contains the same component';
-                        } else {
-                            detail = `Already contains the same or derived component '${cc.js.getClassName(existing)}.`;
-                        }
-
-                        Editor.Dialog.messageBox({
-                            type: 'warning',
-                            buttons: ['OK'],
-                            title: 'Warning',
-                            message: `Can\'t add component '${cc.js.getClassName(compCtor)}'`,
-                            detail: detail
-                        });
-                        return;
-                    }
-                }
-
-                let comp = node.addComponent(compCtor);
-                _Scene.Undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
-                _Scene.Undo.commit();
-            }
+            _Scene.addComponent( nodeID, compID );
         },
 
         'scene:remove-component': function ( nodeID, compID ) {
-            let comp = cc.engine.getInstanceById(compID);
-            if (!comp) {
-                Editor.error( `Can not find component ${compID}` );
-                return;
-            }
-
-            let node = cc.engine.getInstanceById(nodeID);
-            if (!node) {
-                Editor.error( `Can not find node ${nodeID}` );
-                return;
-            }
-
-            let depend = node._getDependComponent(comp);
-            if (depend) {
-                Editor.Dialog.messageBox({
-                    type: 'warning',
-                    buttons: ['OK'],
-                    title: 'Warning',
-                    message: `Can\'t remove component '${cc.js.getClassName(comp)}'`,
-                    detail: `${cc.js.getClassName(depend)} depends on it`
-                });
-                return;
-            }
-            _Scene.Undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
-            _Scene.Undo.commit();
-
-            comp.destroy();
+            _Scene.removeComponent( nodeID, compID );
         },
 
         'scene:create-nodes-by-uuids': function ( uuids, parentID ) {

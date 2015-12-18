@@ -78,6 +78,7 @@ class CreateNodesCommand extends Editor.Undo.Command {
       let info = this.info.list[i];
 
       info.node.parent = null;
+      // info.node._destroyForUndo();
       nodeIDs.push(info.node.uuid);
     }
     Editor.Selection.unselect('node', nodeIDs);
@@ -108,24 +109,7 @@ class DeleteNodesCommand extends Editor.Undo.Command {
       let info = this.info.list[i];
 
       try {
-        // restore node
-        Editor._restoreObject( info.node, info.data );
-        Editor._renewObject( info.node );
-        info.node.parent = info.parent;
-        info.node.setSiblingIndex(info.siblingIndex);
-
-        // restore components
-        info.comps.forEach(compInfo => {
-          Editor._restoreObject( compInfo.comp, compInfo.data );
-          Editor._renewObject( compInfo.comp );
-        });
-
-        // invoke components
-        if (info.node.activeInHierarchy) {
-          info.comps.forEach(compInfo => {
-            compInfo.comp.__onNodeActivated(true);
-          });
-        }
+        Editor._restoreDeleteNode( info.node, info.data );
         nodeIDs.push(info.node.uuid);
       } catch ( err ) {
         Editor.error(`Failed to restore object ${info.node._name}: ${err}`);
@@ -139,7 +123,9 @@ class DeleteNodesCommand extends Editor.Undo.Command {
     for ( let i = 0; i < this.info.list.length; ++i ) {
       let info = this.info.list[i];
 
-      info.node.destroy();
+      info.node._destroyForUndo(() => {
+        info.data = Editor._recordDeleteNode(info.node);
+      });
       nodeIDs.push(info.node.uuid);
     }
     Editor.Selection.unselect('node', nodeIDs);
@@ -321,20 +307,9 @@ let SceneUndo = {
       let node = cc.engine.getInstanceById(id);
 
       try {
-        let nodeData = Editor._recordObject(node);
-        let compsData = node._components.map(comp => {
-          return {
-            comp: comp,
-            data: Editor._recordObject(comp),
-          };
-        });
-
         _currentDeletedRecords.push({
           node: node,
-          parent: node.parent,
-          data: nodeData,
-          siblingIndex: node.getSiblingIndex(),
-          comps: compsData,
+          data: Editor._recordDeleteNode(node),
         });
       } catch ( err ) {
         Editor.error(`Failed to record delete node ${node._name}: ${err}`);
