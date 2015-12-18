@@ -572,6 +572,8 @@
                     _Scene.Undo.recordObject(info.id);
                     Editor.setPropertyByPath(nodeOrComp, info.path, info.value, info.type);
                     cc.engine.repaintInEditMode();
+
+                    _Scene.recordNodeChanged([info.id]);
                 }
                 catch (e) {
                     Editor.warn('Failed to set property %s of %s to %s, ' + e.message,

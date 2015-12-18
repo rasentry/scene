@@ -706,6 +706,28 @@ let Scene = {
     traversal(root, cb);
 
     if (includeSelf) cb(root);
+  },
+
+  recordNodeChanged(idsOrNodes) {
+    if (!idsOrNodes || !idsOrNodes.length) {
+      return;
+    }
+
+    var nodes = idsOrNodes;
+    if (typeof nodes[0] === 'number') {
+      nodes = nodes.map(id => {
+        return cc.getInstanceById(id);
+      });
+    }
+
+    var infos = nodes.map(node => {
+      return {
+        id: node.uuid,
+        dump: Editor.getNodeDump(node)
+      };
+    });
+
+    Editor.sendToWindows('editor:record-node-changed', infos);
   }
 
   // DISABLE
