@@ -569,8 +569,8 @@ let Scene = {
       }
 
       let comp = node.addComponent(compCtor);
-      _Scene.Undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
-      _Scene.Undo.commit();
+      this.Undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
+      this.Undo.commit();
     }
   },
 
@@ -600,9 +600,9 @@ let Scene = {
     }
 
     comp._destroyForUndo(() => {
-      _Scene.Undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
-      _Scene.Undo.commit();
+      this.Undo.recordRemoveComponent( nodeID, comp, node._components.indexOf(comp) );
     });
+    this.Undo.commit();
   },
 
   newProperty ( id, path, typeID ) {

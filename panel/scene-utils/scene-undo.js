@@ -77,8 +77,9 @@ class CreateNodesCommand extends Editor.Undo.Command {
     for ( let i = this.info.list.length-1; i >= 0; --i ) {
       let info = this.info.list[i];
 
-      info.node.parent = null;
-      // info.node._destroyForUndo();
+      info.node._destroyForUndo(() => {
+        info.data = Editor._recordDeleteNode(info.node);
+      });
       nodeIDs.push(info.node.uuid);
     }
     Editor.Selection.unselect('node', nodeIDs);
@@ -89,9 +90,12 @@ class CreateNodesCommand extends Editor.Undo.Command {
     for ( let i = 0; i < this.info.list.length; ++i ) {
       let info = this.info.list[i];
 
-      info.node.parent = info.parent;
-      info.node.setSiblingIndex(info.siblingIndex);
-      nodeIDs.push(info.node.uuid);
+      try {
+        Editor._restoreDeleteNode( info.node, info.data );
+        nodeIDs.push(info.node.uuid);
+      } catch ( err ) {
+        Editor.error(`Failed to restore delete node ${info.node._name}: ${err}`);
+      }
     }
     Editor.Selection.select('node', nodeIDs);
   }
@@ -112,7 +116,7 @@ class DeleteNodesCommand extends Editor.Undo.Command {
         Editor._restoreDeleteNode( info.node, info.data );
         nodeIDs.push(info.node.uuid);
       } catch ( err ) {
-        Editor.error(`Failed to restore object ${info.node._name}: ${err}`);
+        Editor.error(`Failed to restore delete node ${info.node._name}: ${err}`);
       }
     }
     Editor.Selection.select('node', nodeIDs);
@@ -187,33 +191,73 @@ class MoveNodesCommand extends Editor.Undo.Command {
 
 /**
  * info = {
- *   list: [{id, comp, index}]
+ *   list: [{id, comp, index, data}]
  * }
  */
 class AddComponentCommand extends Editor.Undo.Command {
   undo () {
-    // this.info.comp.destroy();
+    let node = cc.engine.getInstanceById(this.info.id);
+    if ( !node ) {
+      return;
+    }
+
+    this.info.comp._destroyForUndo(() => {
+      this.info.data = Editor._recordObject(this.info.comp);
+    });
+    Editor.Selection.select('node', node.uuid);
   }
 
   redo () {
-    // var node = cc.engine.getInstanceById(this.info.id);
-    // node._addComponent(this.info.comp);
+    let node = cc.engine.getInstanceById(this.info.id);
+    if ( !node ) {
+      return;
+    }
+
+    try {
+      Editor._restoreObject( this.info.comp, this.info.data );
+      Editor._renewObject( this.info.comp );
+
+      node._addComponentAt( this.info.comp, this.info.index );
+    } catch ( err ) {
+      Editor.error(`Failed to restore component at node ${this.info.node.name}: ${err}`);
+    }
+    Editor.Selection.select('node', node.uuid);
   }
 }
 
 /**
  * info = {
- *   list: [{id, comp, index}]
+ *   list: [{id, comp, index, data}]
  * }
  */
 class RemoveComponentCommand extends Editor.Undo.Command {
   undo () {
-    // var node = cc.engine.getInstanceById(this.info.id);
-    // node._addComponent(this.info.comp);
+    let node = cc.engine.getInstanceById(this.info.id);
+    if ( !node ) {
+      return;
+    }
+
+    try {
+      Editor._restoreObject( this.info.comp, this.info.data );
+      Editor._renewObject( this.info.comp );
+
+      node._addComponentAt( this.info.comp, this.info.index );
+    } catch ( err ) {
+      Editor.error(`Failed to restore component at node ${this.info.node.name}: ${err}`);
+    }
+    Editor.Selection.select('node', node.uuid);
   }
 
   redo () {
-    // this.info.comp.destroy();
+    let node = cc.engine.getInstanceById(this.info.id);
+    if ( !node ) {
+      return;
+    }
+
+    this.info.comp._destroyForUndo(() => {
+      this.info.data = Editor._recordObject(this.info.comp);
+    });
+    Editor.Selection.select('node', node.uuid);
   }
 }
 
@@ -357,6 +401,7 @@ let SceneUndo = {
       id: id,
       comp: comp,
       index: index,
+      data: Editor._recordObject(comp),
     });
   },
 
