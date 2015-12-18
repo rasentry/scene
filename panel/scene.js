@@ -358,6 +358,14 @@
             });
         },
 
+        _newScene () {
+            this.$.loader.hidden = false;
+            Editor.sendToAll('scene:reloading');
+            _Scene.newScene(() => {
+                this.fire('scene-view-ready');
+            });
+        },
+
         'panel:run': function ( argv ) {
             if ( !argv || !argv.uuid ) {
                 return;
@@ -420,11 +428,24 @@
         },
 
         'scene:new-scene': function () {
-            this.$.loader.hidden = false;
-            Editor.sendToAll('scene:reloading');
-            _Scene.newScene(() => {
-                this.fire('scene-view-ready');
-            });
+            let res = this.confirmCloseScene();
+            switch ( res ) {
+                // save
+                case 0:
+                _Scene.saveScene(() => {
+                    this._newScene();
+                });
+                return;
+
+                // cancel
+                case 1:
+                return;
+
+                // don't save
+                case 2:
+                this._newScene();
+                return;
+            }
         },
 
         'scene:play-on-device': function () {
