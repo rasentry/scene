@@ -714,9 +714,9 @@ let Scene = {
     }
 
     var nodes = idsOrNodes;
-    if (typeof nodes[0] === 'number') {
+    if (typeof nodes[0] === 'string') {
       nodes = nodes.map(id => {
-        return cc.getInstanceById(id);
+        return cc.engine.getInstanceById(id);
       });
     }
 
