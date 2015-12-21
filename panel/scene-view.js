@@ -9,9 +9,7 @@ Editor.registerElement({
         'mousedown': '_onMouseDown',
         'mousewheel': '_onMouseWheel',
         'mousemove': '_onMouseMove',
-        'mouseleave': '_onMouseLeave',
-        'keydown': '_onKeyDown',
-        'keyup': '_onKeyUp'
+        'mouseleave': '_onMouseLeave'
     },
 
     properties: {
@@ -271,7 +269,7 @@ Editor.registerElement({
 
     _onCaptureMousedown: function ( event ) {
         // panning
-        if ( (event.which === 1 && event.shiftKey) ||
+        if ( event.which === 3 ||
              event.which === 2
            )
         {
@@ -438,22 +436,6 @@ Editor.registerElement({
 
     _onMouseLeave: function ( event ) {
         Editor.Selection.hover( 'node', null );
-    },
-
-    _onKeyDown: function ( event ) {
-        event.stopPropagation();
-
-        if ( Editor.KeyCode(event.which) === 'shift' ) {
-            this.style.cursor = '-webkit-grab';
-        }
-    },
-
-    _onKeyUp: function ( event ) {
-        event.stopPropagation();
-
-        if ( Editor.KeyCode(event.which) === 'shift' ) {
-            this.style.cursor = '';
-        }
     },
 
     setTransformTool: function (transformTool) {
