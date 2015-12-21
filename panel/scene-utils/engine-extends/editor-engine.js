@@ -245,8 +245,9 @@ var EditorEngine = cc.Class({
                 for (var i = 0; i<children.length; i++) {
                     var child = children[i];
 
-                    if (!cb( child )) break;
-
+                    if (cb) {
+                        cb( child );
+                    }
                     traversal(child, cb);
                 }
             }
@@ -255,7 +256,9 @@ var EditorEngine = cc.Class({
         }
 
         function testNodeWithSize (node, size) {
-            if (size.width === 0 || size.height === 0) return false;
+            if (size.width === 0 || size.height === 0) {
+                return false;
+            }
 
             var bounds = node.getWorldBounds(size);
 
@@ -273,9 +276,13 @@ var EditorEngine = cc.Class({
         }
 
         deepQueryChildren(scene, function (child) {
+            if (!child.activeInHierarchy) {
+                return;
+            }
+
             if (testNodeWithSize(child, child.getContentSize())) {
                 list.push(child);
-                return true;
+                return;
             }
 
             var components = child._components;
@@ -284,13 +291,11 @@ var EditorEngine = cc.Class({
                 var component = components[i];
                 var size = component.localSize;
 
-                if (testNodeWithSize(child, size)) {
+                if (component.enabledInHierarchy && testNodeWithSize(child, size)) {
                     list.push(child);
                     break;
                 }
             }
-
-            return true;
         });
 
         return list;
