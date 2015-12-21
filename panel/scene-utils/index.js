@@ -657,7 +657,13 @@ let Scene = {
       Editor.setPropertyByPath(inst, path, value, typeID);
       cc.engine.repaintInEditMode();
 
-      _Scene.AnimUtils.recordNodeChanged([id]);
+      // record node changed
+      var node = inst;
+      if (node instanceof cc.Component) {
+        node = inst.node;
+      }
+
+      _Scene.AnimUtils.recordNodeChanged([node]);
     } catch (e) {
       Editor.warn(`Failed to set property ${inst.name} to ${value} at ${path}, ${e.message}`);
     }
