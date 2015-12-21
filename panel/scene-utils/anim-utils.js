@@ -186,6 +186,28 @@
 
         animationNode = animationNode.parent;
       }
+    },
+
+    recordNodeChanged (idsOrNodes) {
+      if (!idsOrNodes || !idsOrNodes.length) {
+        return;
+      }
+
+      var nodes = idsOrNodes;
+      if (typeof nodes[0] === 'string') {
+        nodes = nodes.map(id => {
+          return cc.engine.getInstanceById(id);
+        });
+      }
+
+      var infos = nodes.map(node => {
+        return {
+          id: node.uuid,
+          dump: Editor.getNodeDump(node)
+        };
+      });
+
+      Editor.sendToWindows('editor:record-node-changed', infos);
     }
   };
 

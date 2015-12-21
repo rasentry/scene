@@ -656,6 +656,8 @@ let Scene = {
       _Scene.Undo.recordObject(id);
       Editor.setPropertyByPath(inst, path, value, typeID);
       cc.engine.repaintInEditMode();
+
+      _Scene.AnimUtils.recordNodeChanged([id]);
     } catch (e) {
       Editor.warn(`Failed to set property ${inst.name} to ${value} at ${path}, ${e.message}`);
     }
@@ -858,7 +860,7 @@ let Scene = {
     });
 
     return results;
-  },
+  }
 
   // DISABLE
   // reloadScene ( cb ) {
