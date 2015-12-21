@@ -507,25 +507,8 @@
             Editor.sendToWindows('scene:query-node-functions:reply', sessionID, dump);
         },
 
-        'scene:query-animation-node': function (queryID, nodeID, childName) {
-            var node = cc.engine.getInstanceById(nodeID);
-
-            var animationNode = node;
-            while (animationNode) {
-                var isAnimationNode = animationNode.getComponent(cc.Animation);
-                if (isAnimationNode) {
-                    break;
-                }
-
-                if (animationNode.parent instanceof cc.Scene) {
-                    animationNode = node;
-                    break;
-                }
-
-                animationNode = animationNode.parent;
-            }
-
-            var dump = Editor.getAnimationNodeDump(animationNode, childName);
+        'scene:query-animation-node': function (queryID, nodeID) {
+            var dump = _Scene.AnimUtils.getAnimationNodeDump(nodeID);
             Editor.sendToWindows('scene:reply-animation-node', queryID, dump );
         },
 

@@ -168,9 +168,7 @@
       }
     },
 
-    // selection
-
-    activate(node) {
+    setCurEditNode (node) {
       this.curEditNode = node;
       this.curRootNode = null;
 
@@ -186,6 +184,28 @@
 
         animationNode = animationNode.parent;
       }
+    },
+
+    getAnimationNodeDump (nodeId) {
+      var node = cc.engine.getInstanceById(nodeId);
+
+      var rootNode = node;
+      while (rootNode) {
+          var isAnimationNode = rootNode.getComponent(cc.Animation);
+          if (isAnimationNode) {
+              break;
+          }
+
+          if (rootNode.parent instanceof cc.Scene) {
+              rootNode = node;
+              break;
+          }
+
+          rootNode = rootNode.parent;
+      }
+
+      var dump = Editor.getAnimationNodeDump(rootNode, node);
+      return dump;
     },
 
     recordNodeChanged (idsOrNodes) {

@@ -571,6 +571,11 @@ let Scene = {
       let comp = node.addComponent(compCtor);
       this.Undo.recordAddComponent( nodeID, comp, node._components.indexOf(comp) );
       this.Undo.commit();
+
+      // need update current edit animation node if add a cc.Animation component
+      if (compID === 'cc.Animation') {
+        _Scene.AnimUtils.setCurEditNode(node);
+      }
     }
   },
 
@@ -685,9 +690,7 @@ let Scene = {
       for (let i = 0; i < children.length; i++) {
         let child = children[i];
 
-        if ( !cb( child ) ) {
-          break;
-        }
+        if (cb) cb( child );
 
         traversal(child, cb);
       }
@@ -791,7 +794,7 @@ let Scene = {
       return;
     }
 
-    _Scene.AnimUtils.activate(node);
+    _Scene.AnimUtils.setCurEditNode(node);
 
     // normal process
     for (let i = 0; i < node._components.length; ++i) {
