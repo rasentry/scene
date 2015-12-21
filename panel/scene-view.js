@@ -403,9 +403,11 @@ Editor.registerElement({
         event.stopPropagation();
 
         var newScale = Editor.Utils.smoothScale(this.scale, event.wheelDelta);
-        newScale = Math.clamp(newScale,
-                              this.$.grid.hticks.minValueScale,
-                              this.$.grid.hticks.maxValueScale);
+        newScale = Editor.Math.clamp(
+            newScale,
+            this.$.grid.hticks.minValueScale,
+            this.$.grid.hticks.maxValueScale
+        );
 
         //
         this.scale = newScale;
