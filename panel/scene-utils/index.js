@@ -690,9 +690,7 @@ let Scene = {
       for (let i = 0; i < children.length; i++) {
         let child = children[i];
 
-        if ( !cb( child ) ) {
-          break;
-        }
+        if (cb) cb( child );
 
         traversal(child, cb);
       }
