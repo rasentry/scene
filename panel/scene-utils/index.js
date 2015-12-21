@@ -220,6 +220,16 @@ let Scene = {
   // node operation
   // ==============================
 
+  adjustNodePosition ( node, minDifference ) {
+    if ( minDifference === undefined ) {
+      minDifference = Editor.Math.numOfDecimalsF(1.0/this.view.scale);
+    }
+    node.position = cc.v2(
+      Editor.Math.toPrecision(node.position.x, minDifference),
+      Editor.Math.toPrecision(node.position.y, minDifference)
+    );
+  },
+
   createNodes ( assetUuids, parentID ) {
     let parentNode;
     if ( parentID ) {
@@ -253,6 +263,7 @@ let Scene = {
             let centerX = cc.game.canvas.width / 2;
             let centerY = cc.game.canvas.height / 2;
             node.scenePosition = this.view.pixelToScene( cc.v2(centerX, centerY) );
+            this.adjustNodePosition(node);
 
             _Scene.Undo.recordCreateNode(nodeID);
           }
@@ -302,6 +313,8 @@ let Scene = {
 
             node.setPosition(this.view.pixelToScene( cc.v2(x,y) ));
             node.parent = cc.director.getScene();
+
+            this.adjustNodePosition(node);
           }
 
           _Scene.Undo.recordCreateNode(nodeID);
@@ -346,6 +359,7 @@ let Scene = {
     let centerX = cc.game.canvas.width / 2;
     let centerY = cc.game.canvas.height / 2;
     node.scenePosition = this.view.pixelToScene( cc.v2(centerX, centerY) );
+    this.adjustNodePosition(node);
 
     if (classID) {
       // add component
@@ -392,6 +406,7 @@ let Scene = {
       let centerX = cc.game.canvas.width / 2;
       let centerY = cc.game.canvas.height / 2;
       node.scenePosition = this.view.pixelToScene( cc.v2(centerX, centerY) );
+      this.adjustNodePosition(node);
 
       cc.engine.repaintInEditMode();
       Editor.Selection.select('node', node.uuid, true, true );
