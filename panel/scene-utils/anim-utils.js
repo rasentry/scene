@@ -168,9 +168,7 @@
       }
     },
 
-    // selection
-
-    activate(node) {
+    setCurEditNode (node) {
       this.curEditNode = node;
       this.curRootNode = null;
 
